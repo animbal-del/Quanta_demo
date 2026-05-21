@@ -16,12 +16,7 @@ function hasRealEnvValue(value: string | undefined) {
 }
 
 export function isDemoMode() {
-  return (
-    process.env.QUANTA_DEMO_MODE === "true" ||
-    !hasRealEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL) ||
-    !hasRealEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY) ||
-    !hasRealEnvValue(process.env.OPENAI_API_KEY)
-  );
+  return false;
 }
 
 const demoDeals: DealInboxItem[] = [

@@ -4,33 +4,21 @@ import { runStructuredCompletion } from "@/lib/openai/client";
 import { COMMITMENT_EXTRACTION_SYSTEM_PROMPT, buildCommitmentUserPrompt } from "@/prompts/intake/commitment-extraction.prompt";
 import { AI_MODELS } from "@/constants";
 import type { CommitmentOutput } from "@/types";
-import { isDemoMode, DEMO_SCOUT_ID } from "@/lib/demo/scout-os";
+import { DEMO_SCOUT_ID } from "@/lib/demo/scout-os";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const { body, scout_id } = await req.json();
   if (!body?.trim()) return NextResponse.json({ error: "body required" }, { status: 400 });
 
-  if (isDemoMode()) {
-    return NextResponse.json({
-      message_id: "demo-msg",
-      ai_reply: body.toLowerCase().includes("deck") || body.toLowerCase().includes("may")
-        ? "Got it — I've saved that. I'll follow up if it's still missing after that date."
-        : "Thanks for the update. Is there anything else you can share right now?",
-      commitment_detected: false,
-    });
-  }
-
   const db = getSupabaseAdmin();
   const today = new Date().toISOString().split("T")[0];
   const scoutId = scout_id ?? DEMO_SCOUT_ID;
 
-  // Save scout message
   await db.from("deal_messages").insert({
     deal_id: params.id, scout_id: scoutId,
     sender_type: "scout", channel: "web", message_type: "text", body,
   });
 
-  // Detect commitment
   const commitment = await runStructuredCompletion<CommitmentOutput>(
     COMMITMENT_EXTRACTION_SYSTEM_PROMPT,
     buildCommitmentUserPrompt(body, today),
@@ -47,7 +35,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     });
   }
 
-  // Answer pending partner questions if reply looks like an answer
   const { data: pendingPQ } = await db
     .from("partner_questions")
     .select("id")

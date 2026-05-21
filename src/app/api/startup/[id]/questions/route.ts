@@ -6,23 +6,9 @@ import {
   buildQuestionGenerationUserPrompt,
 } from "@/prompts/intake/question-generation.prompt";
 import { AI_MODELS } from "@/constants";
-import { isDemoMode } from "@/lib/demo/scout-os";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const { extraction } = await req.json();
-
-  if (isDemoMode()) {
-    return NextResponse.json({
-      questions: [
-        "Do you know Rohan's background — has he worked in logistics before?",
-        "Who are the 3 logistics operators he spoke with? Are they paying pilots or just conversations?",
-        "What does the product actually do — is there a working demo or is it pre-product?",
-      ],
-    });
-  }
 
   const result = await runStructuredCompletion<{ questions: string[] }>(
     QUESTION_GENERATION_SYSTEM_PROMPT,
@@ -30,7 +16,6 @@ export async function POST(
     AI_MODELS.nextQuestion
   );
 
-  // Store questions on the deal for reference
   const db = getSupabaseAdmin();
   await db.from("ai_outputs").insert({
     deal_id: params.id,

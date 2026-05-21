@@ -1,19 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { generateSignalsForDeal, generateBriefForDeal } from "@/agents/signals";
-import { isDemoMode, DEMO_DEAL_ID } from "@/lib/demo/scout-os";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  if (isDemoMode()) {
-    return NextResponse.json({ deal_id: DEMO_DEAL_ID, status: "submitted" });
-  }
-
+export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
   const db = getSupabaseAdmin();
 
-  // Update deal status
   const { error } = await db
     .from("deals")
     .update({ status: "submitted", updated_at: new Date().toISOString() })
@@ -21,8 +12,7 @@ export async function POST(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Fire-and-forget: generate signals + brief in background
-  // These are non-blocking — dashboard will show them when ready
+  // Non-blocking background generation
   Promise.all([
     generateSignalsForDeal(params.id),
     generateBriefForDeal(params.id),
