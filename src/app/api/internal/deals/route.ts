@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
       source_scout_id,
       scouts!source_scout_id(id, full_name)
     `)
+    .neq("status", "draft")         // drafts are incomplete — never show in team inbox
+    .not("startup_name", "is", null) // unnamed deals are incomplete submissions
     .order("updated_at", { ascending: false });
 
   if (status) query = query.eq("status", status);
