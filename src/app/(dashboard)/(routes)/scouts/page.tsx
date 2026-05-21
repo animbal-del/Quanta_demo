@@ -213,14 +213,23 @@ export default function ScoutsPage() {
                       </div>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => e.preventDefault()}
-                        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                      <button
+                        title="Send check-in"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          await fetch(`/api/internal/scouts/${scout.id}/checkin`, { method: "POST" });
+                          alert(`Check-in sent to ${scout.full_name}`);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                         <MessageSquare size={13} />
                       </button>
-                      <button onClick={(e) => e.preventDefault()}
-                        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                      <Link
+                        href={`/scouts/${scout.id}`}
+                        title="View submissions"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
                         <TrendingUp size={13} />
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </div>

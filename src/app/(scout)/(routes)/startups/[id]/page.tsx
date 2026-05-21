@@ -70,6 +70,9 @@ export default function StartupDetailPage() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -212,12 +215,53 @@ export default function StartupDetailPage() {
           </button>
           <label className="flex flex-col items-center gap-1.5 border border-gray-100 rounded-xl p-3 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
             <Upload size={15} className="text-gray-400" />Upload Doc
-            <input type="file" className="hidden" />
+            <input type="file" accept=".pdf,.pptx,.docx,image/*" className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file || !deal) return;
+                const pr = await fetch(`/api/upload/presign?bucket=deal-files&filename=${encodeURIComponent(file.name)}&deal_id=${deal.id}`);
+                const { signed_url, storage_url } = await pr.json();
+                await fetch(signed_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+                await fetch(`/api/startup/${deal.id}/file`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ storage_url, file_name: file.name, file_type: file.type }),
+                });
+                alert(`${file.name} uploaded successfully.`);
+              }} />
           </label>
-          <button className="flex flex-col items-center gap-1.5 border border-gray-100 rounded-xl p-3 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-            <Mic size={15} className="text-gray-400" />Add Note
+          <button onClick={() => setShowNoteInput(!showNoteInput)}
+            className={`flex flex-col items-center gap-1.5 border rounded-xl p-3 text-xs font-medium transition-colors ${showNoteInput ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-gray-100 text-gray-600 hover:bg-gray-50"}`}>
+            <Mic size={15} className={showNoteInput ? "text-indigo-500" : "text-gray-400"} />Add Note
           </button>
         </div>
+
+        {/* Note input (shown when Add Note is clicked) */}
+        {showNoteInput && (
+          <div className="mx-4 mb-4 border border-gray-200 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-medium text-gray-600">Personal note (private)</p>
+            <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Your thoughts about this startup…"
+              className="w-full h-20 text-sm border border-gray-200 rounded-lg p-2.5 resize-none focus:outline-none focus:border-gray-400" />
+            <div className="flex gap-2">
+              <button onClick={async () => {
+                if (!noteText.trim() || !deal) return;
+                setSavingNote(true);
+                await fetch(`/api/startup/${deal.id}/notes`, {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ note_text: noteText, note_type: "text" }),
+                });
+                setNoteText(""); setShowNoteInput(false); setSavingNote(false);
+              }} disabled={!noteText.trim() || savingNote}
+                className="flex-1 h-8 bg-gray-950 hover:bg-gray-800 text-white text-xs font-medium rounded-lg flex items-center justify-center disabled:opacity-50">
+                {savingNote ? "Saving…" : "Save Note"}
+              </button>
+              <button onClick={() => { setShowNoteInput(false); setNoteText(""); }}
+                className="h-8 px-3 border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reply input */}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, MessageSquare, TrendingUp, Clock, CheckCircle2, AlertCircle, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowLeft, Mail, MessageSquare, TrendingUp, Clock, CheckCircle2, AlertCircle, ChevronRight, Loader2, Send, X } from "lucide-react";
 
 interface ScoutDetail {
   id: string; full_name: string; email: string; phone: string | null;
@@ -56,6 +56,13 @@ export default function ScoutDetailPage() {
   const { id } = useParams() as { id: string };
   const [scout, setScout] = useState<ScoutDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkinSent, setCheckinSent] = useState(false);
+  const [checkinLoading, setCheckinLoading] = useState(false);
+  const [emailModal, setEmailModal] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     fetch(`/api/internal/scouts/${id}`)
@@ -63,6 +70,27 @@ export default function ScoutDetailPage() {
       .then(setScout)
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function sendCheckin() {
+    setCheckinLoading(true);
+    await fetch(`/api/internal/scouts/${id}/checkin`, { method: "POST" });
+    setCheckinLoading(false);
+    setCheckinSent(true);
+    setTimeout(() => setCheckinSent(false), 3000);
+  }
+
+  async function sendEmail() {
+    if (!emailSubject.trim() || !emailBody.trim()) return;
+    setEmailSending(true);
+    await fetch(`/api/internal/scouts/${id}/email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject: emailSubject, body: emailBody }),
+    });
+    setEmailSending(false);
+    setEmailSent(true);
+    setTimeout(() => { setEmailModal(false); setEmailSent(false); setEmailSubject(""); setEmailBody(""); }, 1500);
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center h-screen">
@@ -99,13 +127,55 @@ export default function ScoutDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1.5 h-8 px-3 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-            <MessageSquare size={13} /> Check-in
+          <button onClick={sendCheckin} disabled={checkinLoading || checkinSent}
+            className={`flex items-center gap-1.5 h-8 px-3 text-sm font-medium border rounded-lg transition-colors ${
+              checkinSent ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            {checkinLoading ? <Loader2 size={13} className="animate-spin" /> : <MessageSquare size={13} />}
+            {checkinSent ? "Sent ✓" : "Check-in"}
           </button>
-          <button className="flex items-center gap-1.5 h-8 px-3 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+          <button onClick={() => setEmailModal(true)}
+            className="flex items-center gap-1.5 h-8 px-3 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
             <Mail size={13} /> Email
           </button>
         </div>
+
+        {/* Email compose modal */}
+        {emailModal && (
+          <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-950">Email {scout.full_name}</h2>
+                <button onClick={() => setEmailModal(false)} className="text-gray-400 hover:text-gray-700"><X size={16} /></button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Subject</label>
+                  <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)}
+                    placeholder="Quick follow-up on your submissions"
+                    className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm focus:outline-none focus:border-gray-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Message</label>
+                  <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)}
+                    placeholder="Hi, just checking in…"
+                    className="w-full h-28 border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-gray-400" />
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setEmailModal(false)}
+                  className="flex-1 h-9 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button onClick={sendEmail} disabled={!emailSubject.trim() || !emailBody.trim() || emailSending}
+                  className="flex-1 h-9 bg-gray-950 hover:bg-gray-800 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50">
+                  {emailSending ? <Loader2 size={13} className="animate-spin" /> : emailSent ? "Sent ✓" : <><Send size={13} /> Send</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-5">
