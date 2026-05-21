@@ -1,209 +1,170 @@
 # Quanta Scout OS — Phase Tracker
 
-Last updated: 2026-05-21 (post-Supabase setup)
+Last updated: 2026-05-21
 Reference: `context.md` for full feature spec
 
 ---
 
 ## How to Read This
 
-- ✅ Done — built and working
-- 🔶 Partial — UI or shell exists, not wired to real data/APIs
+- ✅ Done — built, wired, Supabase-only
+- 🔶 Partial — shell exists, not fully complete
 - ❌ Not started
 
 ---
 
 ## Phase 1 — Foundation ✅ COMPLETE
 
-| Item | Status | File/Location |
-|---|---|---|
-| Folder structure | ✅ | `/src/*` |
-| TypeScript types | ✅ | `src/types/index.ts` |
-| All AI prompt files | ✅ | `src/prompts/**` |
-| Agent logic shells | ✅ | `src/agents/**` |
-| API route shells | ✅ | `src/app/api/**` |
-| Database migration | ✅ | `supabase/migrations/001_initial_schema.sql` |
-| Demo seed data | ✅ | `supabase/seed/demo-seed.sql` |
-| Demo mode system | ✅ | `src/lib/demo/scout-os.ts` |
-| Dev server running | ✅ | `localhost:3001` |
+All folder structure, types, prompts, agent shells, DB migration, seed data. Dev server running.
 
 ---
 
-## Phase 2 — Auth System 🔶 IN PROGRESS
+## Phase 2 — Auth System ✅ COMPLETE
 
-| Item | Status | Notes |
-|---|---|---|
-| Login page UI (dual-role selector) | ✅ | `src/app/page.tsx` |
-| Role-based redirect on login | ✅ | Sends to `/inbox` or `/scout` |
-| Supabase credentials in env | ✅ | `.env.local` complete |
-| Supabase SQL migrations run | ✅ | All 14 tables confirmed in dashboard |
-| `user_roles` table | ✅ | Live in Supabase |
-| `scout_invites` table | ✅ | Live in Supabase |
-| Supabase Auth email enabled | ✅ | Configured in dashboard |
-| Supabase Storage buckets | ✅ | `deal-files` + `scout-audio` created with policies |
-| Resend installed + API key | ✅ | `re_DpZ11zdo_...` in `.env.local` |
-| OpenAI API key | ✅ | Live — tested, returning real GPT-4o replies |
-| Demo seed data loaded | ✅ | FlowOps/CampusPay/MedSync in Supabase |
-| `@supabase/ssr` installed | ✅ | For Next.js App Router auth |
-| Server-side Supabase client | ❌ | `src/lib/supabase/server.ts` — Phase 2B |
-| `middleware.ts` real auth | ❌ | Currently permissive — Phase 2B |
-| `/api/auth/invite` route | ❌ | Phase 2B |
-| `/api/auth/complete-signup` route | ❌ | Phase 2B |
-| Add Scout slide-over form | ❌ | Phase 2B |
-| `/complete-signup` wired to Supabase | ❌ | Page shell exists — Phase 2B |
-| Real session-based login | ❌ | Currently demo mode — Phase 2B |
-
-**Currently building:** Phase 2B — invite flow, Add Scout form, Supabase session auth
+| Item | Status |
+|---|---|
+| Login page — dual-role selector + Supabase auth + demo fallback | ✅ |
+| `middleware.ts` — Supabase SSR session check, role-based routing in prod | ✅ |
+| `@supabase/ssr` installed, `src/lib/supabase/server.ts` | ✅ |
+| All 14 DB tables live in Supabase | ✅ |
+| Supabase Auth email enabled, email templates configured | ✅ |
+| Supabase Storage — `deal-files` + `scout-audio` buckets with RLS policies | ✅ |
+| Resend installed + API key configured + `src/lib/resend/client.ts` | ✅ |
+| OpenAI API key live — real GPT-4o responses confirmed | ✅ |
+| `POST /api/auth/invite` — creates scout + invite token + sends real Resend email | ✅ |
+| `POST /api/auth/complete-signup` — validates token, creates Supabase user, sets role | ✅ |
+| `GET /api/auth/role` — returns current session role | ✅ |
+| `/complete-signup` page — validates token on load, wired to real API | ✅ |
+| Add Scout slide-over — sends real invite email (tested + confirmed) | ✅ |
+| `isDemoMode()` → always returns `false` — all routes Supabase-only | ✅ |
 
 ---
 
-## Phase 3 — Scout Submission Flow 🔶 PARTIAL
+## Phase 3 — Scout Submission Flow ✅ COMPLETE
 
-| Item | Status | Notes |
-|---|---|---|
-| Add Startup page UI (6 steps) | ✅ | `src/app/(scout)/(routes)/add-startup/page.tsx` |
-| Mode selection UI | ✅ | Voice / Manual / Document cards |
-| Voice pitch studio UI | ✅ | Record button, timer, indicator checklist |
-| Manual entry form UI | ✅ | All fields present |
-| Document upload UI | ✅ | Drag-drop zone |
-| AI autofill review step | ✅ | Static FlowOps demo |
-| Question round UI | ✅ | 3 questions with Text/Voice/Skip |
-| Scout notes step UI | ✅ | Record / Write options |
-| Submit step UI | ✅ | Summary + Submit button |
-| `/api/startup/init` | ❌ | Not built |
-| Presigned URL upload | ❌ | Not built (`/api/upload/presign`) |
-| MediaRecorder browser recording | ❌ | Not wired |
-| `/api/startup/:id/audio` (Whisper) | ❌ | Not built |
-| `/api/startup/:id/manual` | ❌ | Not built |
-| `/api/startup/:id/file` | ❌ | Not built |
-| `/api/startup/:id/answers` | ❌ | Not built |
-| `/api/startup/:id/notes` | ❌ | Not built |
-| `/api/startup/:id/submit` | ❌ | Not built |
-| Question generation AI prompt | ❌ | `src/prompts/intake/question-generation.prompt.ts` |
-| Real-time indicator ticking | ❌ | Phase 9 |
-| Wire all steps to real APIs | ❌ | Blocked by API routes |
-
-**Next step for Phase 3:** Build `/api/startup/init` → presigned URL route → audio/manual/file routes → wire steps
+| Item | Status |
+|---|---|
+| Add Startup page — 6 steps, all wired to real APIs | ✅ |
+| Mode selection → `POST /api/startup/init` creates real Supabase draft deal | ✅ |
+| Voice: MediaRecorder browser recording, 2-min countdown, indicator checklist | ✅ |
+| Voice: audio upload → Whisper transcription → GPT-4o extraction → autofill | ✅ |
+| Manual: form → `POST /api/startup/:id/manual` → extraction + Supabase save | ✅ |
+| Document: presigned URL → Supabase Storage → enrichment AI → autofill | ✅ |
+| `GET /api/upload/presign` — Supabase Storage signed upload URL | ✅ |
+| `POST /api/startup/:id/questions` — GPT-4o generates 3-5 targeted questions | ✅ |
+| `POST /api/startup/:id/answers` — saves to `deal_answers` table | ✅ |
+| `POST /api/startup/:id/notes` — saves to `scout_notes` table | ✅ |
+| `POST /api/startup/:id/submit` — sets submitted, fires background signal+brief | ✅ |
+| `GET /api/startup/:id/draft` — returns current draft for review step | ✅ |
+| Date commitment detection on submission messages | ✅ |
+| Real-time indicator ticking (Phase 9 — visual simulation for now) | 🔶 |
 
 ---
 
-## Phase 4 — Scout Review Pages 🔶 PARTIAL
+## Phase 4 — Scout Review Pages ✅ COMPLETE
 
-| Item | Status | Notes |
-|---|---|---|
-| Scout home page | ✅ | `src/app/(scout)/(routes)/scout/page.tsx` |
-| Startup detail page | ✅ | `src/app/(scout)/(routes)/startups/[id]/page.tsx` |
-| Startup detail — conversation thread | ✅ | Static messages |
-| Startup detail — generate email modal | ✅ | AI-generated email shown |
-| Startup detail — uploads section | ✅ | Static list |
-| Startup list / review page | ❌ | No `/scout/startups` page — only `/submissions` |
-| Real API data on scout home | ❌ | Still static |
-| Date commitment detection on replies | ❌ | Not wired |
-| Upload extra files in chat | ❌ | UI button exists, not wired |
-| Scout notes audio playback | ❌ | No audio player component |
-| Scout dashboard (notifications/analytics) | ❌ | No `/scout/dashboard` page |
-
----
-
-## Phase 5 — Quanta Deal Inbox + Detail 🔶 PARTIAL
-
-| Item | Status | Notes |
-|---|---|---|
-| Command center / inbox page | ✅ | `src/app/(dashboard)/(routes)/inbox/page.tsx` |
-| Stat cards (new, need review, follow-ups) | ✅ | 3 cards at top |
-| Deal cards with signals | ✅ | Status, signals, missing info, next action |
-| Filter bar | ✅ | All / Needs Info / Under Review / High Signal / Monitor |
-| Manage Applications page (`/deals`) | ❌ | No separate page — inbox doubles as it |
-| Deal detail — Overview tab | ✅ | `src/app/(dashboard)/(routes)/deals/[id]/page.tsx` |
-| Deal detail — Analyze tab | ❌ | Not built |
-| Deal detail — Scout Interaction tab | ❌ | Only basic Ask Scout modal |
-| Ask Scout — AI rewrite preview | ✅ | Works in modal (demo) |
-| Recommended messages by AI | ❌ | Not built |
-| Internal notes (partner-only) | ❌ | Not built |
-| Status + priority update controls | ❌ | Buttons exist but no action |
-| Real data from Supabase | ❌ | Demo mode fallback only |
+| Item | Status |
+|---|---|
+| Scout home (`/scout`) — fetches `/api/scout/deals`, stats strip, action badges | ✅ |
+| Startup detail (`/startups/:id`) — fetches deal by URL param, real thread | ✅ |
+| Startup detail — reply sends to Supabase, AI responds, commitment detection | ✅ |
+| Startup detail — Generate Email modal (copy or open in mail client) | ✅ |
+| Submissions page (`/submissions`) — fetches `/api/scout/deals`, filter chips | ✅ |
+| `GET /api/scout/deals` — scout's deals from Supabase | ✅ |
+| `POST /api/scout/deals/:id/reply` — saves reply, detects dates, AI responds | ✅ |
+| Loading skeletons on all scout pages | ✅ |
+| Scout notes audio playback | ❌ |
+| Scout dashboard — notifications/analytics page | ❌ |
 
 ---
 
-## Phase 6 — Scout Management 🔶 PARTIAL
+## Phase 5 — Quanta Deal Inbox + Detail 🔶 IN PROGRESS
 
 | Item | Status | Notes |
 |---|---|---|
-| Scout list page | ✅ | `src/app/(dashboard)/(routes)/scouts/page.tsx` |
-| Responsiveness bar | ✅ | Visual bar component |
-| Add Scout slide-over form | ❌ | Button exists, no form |
-| Add Scout → sends invite email | ❌ | No invite logic |
-| Scout detail page | ❌ | `src/app/(dashboard)/(routes)/scouts/[id]/page.tsx` — not built |
-| Email correspondence history | ❌ | Not built |
-| Last email sent / responded columns | ❌ | Not in UI |
-| Inactive indicator (14+ days) | 🔶 | Logic not real — static data |
+| Command center (`/inbox`) — fetches Supabase, stat cards, filter bar | ✅ | |
+| Applications page (`/deals`) — fetches Supabase, search, status filters | ✅ | |
+| Deal detail — Overview tab (brief, signals, founders, missing info, files) | ✅ | |
+| Deal detail — Scout Interaction tab (thread, partner questions, ask scout) | ✅ | |
+| Ask Scout — AI rewrite calls real `/api/internal/deals/:id/ask-scout` | ✅ | |
+| `GET /api/internal/deals/[dealId]` — full deal with all relations | ✅ | |
+| `GET /api/internal/deals` — inbox list with signals | ✅ | |
+| Deal detail — Analyze tab with real AI market analysis | ❌ | **Building now** |
+| Recommended messages in Interaction tab | ❌ | **Building now** |
+| Status + priority update from UI | ❌ | **Building now** |
+| Add internal note from UI | ❌ | **Building now** |
 
 ---
 
-## Phase 7 — Email Correspondence ❌ NOT STARTED
+## Phase 6 — Scout Management ✅ COMPLETE
 
-| Item | Status | Notes |
-|---|---|---|
-| Resend installed | ✅ | `npm install resend` done |
-| Resend API key | ❌ | Sign up at resend.com |
-| `src/lib/resend/client.ts` | ❌ | Needs API key first |
-| Invite email template | ❌ | React Email |
-| Weekly check-in email template | ❌ | React Email |
-| Follow-up email template | ❌ | React Email |
-| `/api/email/respond` endpoint | ❌ | Button-click tracking |
-| `email_correspondence` table | ❌ | In migration 002 |
+| Item | Status |
+|---|---|
+| Scout list (`/scouts`) — fetches Supabase, deal counts, inactive indicator | ✅ |
+| Add Scout slide-over — creates scout + invite token + sends real Resend email | ✅ |
+| Scout detail (`/scouts/:id`) — fetches by URL param, deals grid, email history | ✅ |
+| Email correspondence history shown | ✅ |
+| `GET /api/internal/scouts` — all scouts with deal counts | ✅ |
+| `GET /api/internal/scouts/:id` — detail with deals + email history | ✅ |
 
 ---
 
-## Phase 8 — Analytics + Illustrations 🔶 PARTIAL
+## Phase 7 — Email Correspondence 🔶 PARTIAL
 
 | Item | Status | Notes |
 |---|---|---|
-| Analytics page shell | ✅ | Static numbers and bar chart CSS |
-| Recharts installed | ❌ | Not in package.json |
-| Real chart components | ❌ | Not built |
-| SVG illustrations | ❌ | Not sourced |
-| Scout analytics section | ❌ | Not built |
+| Resend installed + API key + `src/lib/resend/client.ts` | ✅ | |
+| Invite email — sends real emails (confirmed working) | ✅ | |
+| Weekly check-in email template built | ✅ | In `resend/client.ts` |
+| Follow-up email template built | ✅ | In `resend/client.ts` |
+| `email_correspondence` table in Supabase | ✅ | |
+| `/api/email/respond` — handle email CTA button clicks | ❌ | |
+| Weekly check-in actually scheduled via cron | ❌ | Needs Vercel deploy |
+| Follow-up emails triggered by agents | ❌ | Needs scheduler wired |
+
+---
+
+## Phase 8 — Analytics + Charts 🔶 PARTIAL
+
+| Item | Status | Notes |
+|---|---|---|
+| Analytics page — fetches Supabase, CSS bar charts | ✅ | |
+| `GET /api/internal/analytics` — live totals, categories, bottlenecks | ✅ | |
+| Recharts proper charts (pipeline funnel, activity over time) | ❌ | |
+| Scout analytics section | ❌ | |
+| SVG illustrations / empty states | ❌ | |
 
 ---
 
 ## Phase 9 — Real-time Indicator Ticking ❌ NOT STARTED
 
-| Item | Status | Notes |
-|---|---|---|
-| MediaRecorder API browser recording | ❌ | |
-| 3-second chunk upload | ❌ | |
-| `/api/startup/:id/live-tick` | ❌ | |
-| Live tick prompt | ❌ | `src/prompts/intake/live-tick.prompt.ts` |
-| Indicator UI real-time update | ❌ | |
+Visual simulation exists (ticks at fixed intervals). Real AI ticking needs:
+- 3-second audio chunk streaming to `/api/startup/:id/live-tick`
+- `src/prompts/intake/live-tick.prompt.ts`
+- gpt-4o-mini classification per chunk
 
 ---
 
-## Phase 10 — OpenClaw + Demo Layer 🔶 PARTIAL
+## Phase 10 — OpenClaw + Vercel Deploy 🔶 PARTIAL
 
 | Item | Status | Notes |
 |---|---|---|
-| Demo mode system (`isDemoMode()`) | ✅ | Works without real credentials |
-| Demo seed data | ✅ | SQL file ready to run |
-| OpenClaw webhook endpoint | ✅ | `/api/openclaw/webhook` — wired to demo mode |
-| OpenClaw simulate mode | ✅ | `OPENCLAW_SIMULATE=true` |
-| Demo control panel page | ❌ | No `/demo` page |
-| Seed data button (UI) | ❌ | |
-| Reset demo button (UI) | ❌ | |
-| Telegram bot setup | ❌ | Phase 10 |
-| Vercel deployment | ❌ | See `/docs/setup-vercel.md` |
+| OpenClaw webhook endpoint (`/api/openclaw/webhook`) | ✅ | Wired, Supabase-only |
+| OpenClaw simulate mode (`OPENCLAW_SIMULATE=true`) | ✅ | |
+| `vercel.json` cron config | ✅ | 2 cron jobs defined |
+| `CRON_SECRET` protection on scheduler | ✅ | In middleware |
+| Vercel deployment | ❌ | See `docs/setup-vercel.md` |
+| Telegram bot setup | ❌ | |
+| Demo control panel (`/demo`) | ❌ | |
 
 ---
 
-## Recommended Build Order (Now → Demo Ready)
+## Build Priority (Remaining)
 
 ```
-Phase 2A  Run SQL migrations in Supabase        ← unblocks everything
-Phase 5A  Manage Applications page (/deals)      ← needed for demo
-Phase 5B  Deal detail 3 tabs                     ← needed for demo
-Phase 6A  Add Scout form + Scout detail          ← needed for demo
-Phase 2B  Auth invite flow                       ← needed for real users
-Phase 3A  Startup submission API routes          ← needed for real scouts
-Phase 7   Email system                           ← needed for real scouts
-Phase 8   Analytics with real charts             ← nice to have for demo
+Phase 5 completion   Status updates, Analyze tab, notes, recommended messages   ← NOW
+Phase 7 finish       /api/email/respond endpoint                                 ← Next
+Phase 8 upgrade      Recharts pipeline funnel + activity charts                  ← After
+Phase 9              Real-time indicator ticking (AI per audio chunk)            ← Later
+Phase 10             Vercel deploy + Telegram bot                                ← Last
 ```
