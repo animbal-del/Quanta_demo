@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
       partner_questions(id, status)
     `)
     .eq("source_scout_id", scout_id)
+    .neq("status", "temp")        // temp = auto-created, not explicitly saved by scout
     .order("updated_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

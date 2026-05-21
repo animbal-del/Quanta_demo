@@ -7,7 +7,9 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await db
     .from("deals")
-    .insert({ status: "draft", source_scout_id: scout_id, submission_mode: mode, priority: "normal" })
+    // status = 'temp' means auto-created, not explicitly saved — hidden from all views
+    // Only changes to 'draft' when scout clicks "Save as Draft"
+    .insert({ status: "temp", source_scout_id: scout_id, submission_mode: mode, priority: "normal" })
     .select("id")
     .single();
 

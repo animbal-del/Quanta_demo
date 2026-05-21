@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft, ArrowRight, Check, FileUp, Mic, PencilLine,
   Send, Square, Loader2, AlertCircle, StopCircle, Edit3,
-  RefreshCw, CheckCircle2,
+  RefreshCw, CheckCircle2, BookmarkCheck,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -394,6 +394,10 @@ export default function AddStartupPage() {
   const [noteRaw, setNoteRaw] = useState("");
   const [showNoteVersions, setShowNoteVersions] = useState(false);
 
+  // Draft save state
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+
   // Editable review fields (Step 3)
   const [reviewFields, setReviewFields] = useState({
     startup_name: "", founder_name: "", one_line_description: "", why_interesting: "", traction: "",
@@ -458,6 +462,35 @@ export default function AddStartupPage() {
     const { deal_id } = await post("/api/startup/init", { scout_id: getScoutId(), mode });
     setDealId(deal_id);
     return deal_id as string;
+  }
+
+  async function saveDraft() {
+    setSavingDraft(true);
+    setError("");
+    try {
+      // Create deal first if we don't have one yet
+      const id = dealId ?? await initDeal();
+
+      await fetch(`/api/startup/${id}/save-draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startup_name: reviewFields.startup_name || manual.startup_name || null,
+          one_line_description: reviewFields.one_line_description || manual.what_it_does || null,
+          founder_name: reviewFields.founder_name || manual.founder_name || null,
+          why_interesting: reviewFields.why_interesting || manual.why_interesting || null,
+          traction: reviewFields.traction || manual.traction || null,
+          scout_conviction: extraction?.scout_conviction ?? null,
+        }),
+      });
+
+      setDraftSaved(true);
+      setTimeout(() => setDraftSaved(false), 3000); // reset after 3s
+    } catch (e) {
+      setError(`Draft save failed: ${e}`);
+    } finally {
+      setSavingDraft(false);
+    }
   }
 
   async function fetchQuestions(id: string, ext: Extraction) {
@@ -878,20 +911,43 @@ export default function AddStartupPage() {
 
         {/* ── Navigation ── */}
         {step < 6 && !processing && (
-          <div className="mt-6 flex gap-3">
-            <button onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={step === 1}
-              className="h-11 flex-1 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-colors">
-              Back
-            </button>
-            {step === 5 ? (
-              <button onClick={handleSubmit}
-                className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
-                <Send size={14} /> Submit to Quanta
+          <div className="mt-6 space-y-2">
+            <div className="flex gap-3">
+              <button onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={step === 1}
+                className="h-11 w-20 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-colors shrink-0">
+                Back
               </button>
-            ) : (
-              <button onClick={handleContinue}
-                className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
-                Continue <ArrowRight size={14} />
+              {step === 5 ? (
+                <button onClick={handleSubmit}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
+                  <Send size={14} /> Submit to Quanta
+                </button>
+              ) : (
+                <button onClick={handleContinue}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
+                  Continue <ArrowRight size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Save as Draft — visible from step 2 onwards */}
+            {step >= 2 && (
+              <button
+                onClick={saveDraft}
+                disabled={savingDraft}
+                className={`w-full flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-medium transition-all border ${
+                  draftSaved
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                }`}
+              >
+                {savingDraft ? (
+                  <><Loader2 size={13} className="animate-spin" /> Saving…</>
+                ) : draftSaved ? (
+                  <><BookmarkCheck size={14} /> Draft saved — find it in My Submissions</>
+                ) : (
+                  <><BookmarkCheck size={14} /> Save as Draft</>
+                )}
               </button>
             )}
           </div>
