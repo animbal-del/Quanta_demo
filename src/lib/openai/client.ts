@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { isGroqConfigured, transcribeWithGroq } from "@/lib/groq/client";
 
 let client: OpenAI | null = null;
 
@@ -52,8 +53,13 @@ export async function runTextCompletion(
 }
 
 export async function transcribeAudio(audioBuffer: Buffer, filename: string): Promise<string> {
+  // Use Groq (5-10x faster) when configured, fall back to OpenAI Whisper
+  if (isGroqConfigured()) {
+    return transcribeWithGroq(audioBuffer, filename);
+  }
+
   const openai = getOpenAIClient();
-  const file = new File([new Uint8Array(audioBuffer)], filename, { type: "audio/ogg" });
+  const file = new File([new Uint8Array(audioBuffer)], filename, { type: "audio/webm" });
 
   const transcription = await openai.audio.transcriptions.create({
     file,
