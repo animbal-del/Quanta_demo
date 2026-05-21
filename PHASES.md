@@ -1,6 +1,6 @@
 # Quanta Scout OS — Phase Tracker
 
-Last updated: 2026-05-21
+Last updated: 2026-05-21 (post-Supabase setup)
 Reference: `context.md` for full feature spec
 
 ---
@@ -33,22 +33,27 @@ Reference: `context.md` for full feature spec
 
 | Item | Status | Notes |
 |---|---|---|
-| Login page UI (dual-role selector) | ✅ | `src/app/page.tsx` — well built |
+| Login page UI (dual-role selector) | ✅ | `src/app/page.tsx` |
 | Role-based redirect on login | ✅ | Sends to `/inbox` or `/scout` |
-| Supabase credentials in env | ✅ | `.env.local` filled in |
-| Supabase SQL migrations run | ❌ | **Must run 001 + 002 in Supabase dashboard** |
-| `user_roles` table | ❌ | In migration 002 — not run yet |
-| `scout_invites` table | ❌ | In migration 002 — not run yet |
-| `middleware.ts` route protection | ❌ | File created but permissive (demo mode) |
-| Supabase Auth email enabled | ❌ | Must enable in Supabase dashboard |
-| `/auth/complete-signup` page | ❌ | Folder created, page not built |
-| `/auth/verify-phone` page | ❌ | Not started |
-| Resend installed | ✅ | `npm install resend` done |
-| Resend API key | ❌ | Need to sign up at resend.com |
-| Invite email template | ❌ | Not started |
-| Real session-based auth | ❌ | Currently localStorage demo only |
+| Supabase credentials in env | ✅ | `.env.local` complete |
+| Supabase SQL migrations run | ✅ | All 14 tables confirmed in dashboard |
+| `user_roles` table | ✅ | Live in Supabase |
+| `scout_invites` table | ✅ | Live in Supabase |
+| Supabase Auth email enabled | ✅ | Configured in dashboard |
+| Supabase Storage buckets | ✅ | `deal-files` + `scout-audio` created with policies |
+| Resend installed + API key | ✅ | `re_DpZ11zdo_...` in `.env.local` |
+| OpenAI API key | ✅ | Live — tested, returning real GPT-4o replies |
+| Demo seed data loaded | ✅ | FlowOps/CampusPay/MedSync in Supabase |
+| `@supabase/ssr` installed | ✅ | For Next.js App Router auth |
+| Server-side Supabase client | ❌ | `src/lib/supabase/server.ts` — Phase 2B |
+| `middleware.ts` real auth | ❌ | Currently permissive — Phase 2B |
+| `/api/auth/invite` route | ❌ | Phase 2B |
+| `/api/auth/complete-signup` route | ❌ | Phase 2B |
+| Add Scout slide-over form | ❌ | Phase 2B |
+| `/complete-signup` wired to Supabase | ❌ | Page shell exists — Phase 2B |
+| Real session-based login | ❌ | Currently demo mode — Phase 2B |
 
-**Next step for Phase 2:** Run SQL migrations → set up Supabase Auth → build complete-signup page → get Resend key → build invite flow
+**Currently building:** Phase 2B — invite flow, Add Scout form, Supabase session auth
 
 ---
 

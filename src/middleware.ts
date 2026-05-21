@@ -1,61 +1,96 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-// Route protection matrix
-// In demo mode (no real auth): passes everything through
-// When real Supabase Auth is wired: enforce role-based access
-
-const SCOUT_ROUTES = ["/scout", "/add-startup", "/startups", "/submissions"];
+const SCOUT_ROUTES = ["/scout", "/add-startup", "/startups", "/submissions", "/chat"];
 const TEAM_ROUTES = ["/inbox", "/deals", "/scouts", "/queue", "/analytics"];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip API routes, static files, and auth pages
+  // Always allow: static files, auth pages, root login, API
   if (
-    pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
-    pathname.startsWith("/auth/") ||
-    pathname === "/favicon.ico" ||
-    pathname === "/"
+    pathname.startsWith("/api/") ||
+    pathname === "/" ||
+    pathname.startsWith("/complete-signup") ||
+    pathname === "/favicon.ico"
   ) {
     return NextResponse.next();
   }
 
-  // Cron job protection — require CRON_SECRET header
+  // Cron protection in production
   if (pathname.startsWith("/api/internal/scheduler")) {
     const cronSecret = process.env.CRON_SECRET;
-    const authHeader = request.headers.get("authorization");
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // Allow requests without the header in dev mode
-      if (process.env.NODE_ENV === "production") {
+    if (cronSecret && !cronSecret.startsWith("TODO_") && process.env.NODE_ENV === "production") {
+      const authHeader = request.headers.get("authorization");
+      if (authHeader !== `Bearer ${cronSecret}`) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
     }
     return NextResponse.next();
   }
 
-  // Demo / development: let everything through
-  // TODO Phase 2: Replace with real Supabase session check
-  // Example of what this will look like:
-  //
-  // const sessionCookie = request.cookies.get("sb-session");
-  // if (!sessionCookie) {
-  //   return NextResponse.redirect(new URL("/", request.url));
-  // }
-  //
-  // const role = request.cookies.get("quanta-role")?.value;
-  // if (pathname.startsWith("/inbox") && role !== "quanta") {
-  //   return NextResponse.redirect(new URL("/scout", request.url));
-  // }
-  // if (pathname.startsWith("/scout") && role !== "scout") {
-  //   return NextResponse.redirect(new URL("/inbox", request.url));
-  // }
+  let response = NextResponse.next({ request });
 
-  return NextResponse.next();
+  // Create Supabase client that can refresh the session cookie
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // No session — only block protected routes, allow demo mode through
+  if (!user) {
+    const isTeamRoute = TEAM_ROUTES.some((r) => pathname.startsWith(r));
+    const isScoutRoute = SCOUT_ROUTES.some((r) => pathname.startsWith(r));
+
+    // In development: let everything through (demo mode works without auth)
+    if (process.env.NODE_ENV === "development") return response;
+
+    // In production: enforce auth on protected routes
+    if (isTeamRoute || isScoutRoute) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    return response;
+  }
+
+  // Session exists — get role and enforce route access
+  const { data: roleData } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  const role = roleData?.role;
+
+  const isTeamRoute = TEAM_ROUTES.some((r) => pathname.startsWith(r));
+  const isScoutRoute = SCOUT_ROUTES.some((r) => pathname.startsWith(r));
+
+  if (isTeamRoute && role !== "quanta" && role !== "admin") {
+    return NextResponse.redirect(new URL("/scout", request.url));
+  }
+
+  if (isScoutRoute && role !== "scout") {
+    return NextResponse.redirect(new URL("/inbox", request.url));
+  }
+
+  return response;
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|public/).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|public/).*)"],
 };
