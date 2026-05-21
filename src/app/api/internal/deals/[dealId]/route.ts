@@ -7,17 +7,19 @@ export async function GET(
 ) {
   const db = getSupabaseAdmin();
 
-  const [dealRes, foundersRes, messagesRes, filesRes, tasksRes, signalsRes, briefRes, notesRes, pqRes] =
+  const [dealRes, foundersRes, messagesRes, filesRes, tasksRes, signalsRes, briefRes, notesRes, pqRes, answersRes, scoutNotesRes] =
     await Promise.all([
       db.from("deals").select("*, scouts!source_scout_id(id, full_name, email)").eq("id", params.dealId).single(),
       db.from("founders").select("*").eq("deal_id", params.dealId),
       db.from("deal_messages").select("*").eq("deal_id", params.dealId).order("created_at", { ascending: true }),
       db.from("deal_files").select("*").eq("deal_id", params.dealId),
-      db.from("missing_info_tasks").select("*").eq("deal_id", params.dealId),
+      db.from("missing_info_tasks").select("*").eq("deal_id", params.dealId).order("created_at", { ascending: true }),
       db.from("ai_outputs").select("output_json").eq("deal_id", params.dealId).eq("output_type", "signal_summary").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       db.from("ai_outputs").select("output_json").eq("deal_id", params.dealId).eq("output_type", "internal_brief").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       db.from("internal_notes").select("*").eq("deal_id", params.dealId).order("created_at", { ascending: false }),
       db.from("partner_questions").select("*").eq("deal_id", params.dealId).order("created_at", { ascending: false }),
+      db.from("deal_answers").select("*").eq("deal_id", params.dealId).order("created_at", { ascending: true }),
+      db.from("scout_notes").select("*").eq("deal_id", params.dealId).order("created_at", { ascending: false }),
     ]);
 
   if (dealRes.error || !dealRes.data) {
@@ -35,5 +37,7 @@ export async function GET(
     brief: briefRes.data?.output_json ?? null,
     internal_notes: notesRes.data ?? [],
     partner_questions: pqRes.data ?? [],
+    deal_answers: answersRes.data ?? [],
+    scout_notes: scoutNotesRes.data ?? [],
   });
 }
