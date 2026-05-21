@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, ArrowRight, Clock, MessageCircle, CheckCircle2, AlertCircle, Zap } from "lucide-react";
+import { Plus, ArrowRight, Clock, MessageCircle, CheckCircle2, AlertCircle, Zap, User, Bell } from "lucide-react";
 
 interface ScoutDeal {
   id: string; startup_name: string | null; one_line_description: string | null;
@@ -30,12 +30,13 @@ function relativeTime(iso: string) {
 export default function ScoutHomePage() {
   const [deals, setDeals] = useState<ScoutDeal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState("there");
 
   useEffect(() => {
-    fetch("/api/scout/deals")
-      .then((r) => r.json())
-      .then(setDeals)
-      .finally(() => setLoading(false));
+    fetch("/api/scout/deals").then((r) => r.json()).then(setDeals).finally(() => setLoading(false));
+    fetch("/api/auth/session").then((r) => r.json()).then((s) => {
+      if (s.display_name) setDisplayName(s.display_name.split(" ")[0]);
+    });
   }, []);
 
   const needsAction = deals.filter((d) => d.has_pending_question || d.status === "needs_info");
@@ -49,10 +50,17 @@ export default function ScoutHomePage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400">Scout Portal</p>
-            <h1 className="text-lg font-semibold text-gray-950">Hi there 👋</h1>
+            <h1 className="text-lg font-semibold text-gray-950">Hi {displayName} 👋</h1>
           </div>
-          <div className="w-8 h-8 rounded-lg bg-gray-950 flex items-center justify-center">
-            <Zap size={14} className="text-white" />
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
+              <Bell size={13} className="text-gray-600" />
+            </Link>
+            <Link href="/profile">
+              <div className="w-8 h-8 rounded-full bg-gray-950 flex items-center justify-center hover:bg-gray-800 transition-colors">
+                <User size={14} className="text-white" />
+              </div>
+            </Link>
           </div>
         </div>
       </header>

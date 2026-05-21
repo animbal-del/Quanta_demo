@@ -27,3 +27,18 @@ export async function GET(_req: NextRequest, { params }: { params: { scoutId: st
     email_history: emailRes.data ?? [],
   });
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: { scoutId: string } }) {
+  const body = await req.json();
+  const db = getSupabaseAdmin();
+
+  const allowed = ["full_name", "phone", "focus_areas", "preferred_channel", "status"];
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const key of allowed) {
+    if (key in body) update[key] = body[key];
+  }
+
+  const { data, error } = await db.from("scouts").update(update).eq("id", params.scoutId).select("id, full_name, focus_areas").single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data);
+}

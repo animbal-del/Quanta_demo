@@ -1,38 +1,45 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const SCOUT_ROUTES = ["/scout", "/add-startup", "/startups", "/submissions", "/chat"];
-const TEAM_ROUTES = ["/inbox", "/deals", "/scouts", "/queue", "/analytics"];
+const SCOUT_ROUTES  = ["/scout", "/add-startup", "/startups", "/submissions", "/chat"];
+const TEAM_ROUTES   = ["/inbox", "/deals", "/scouts", "/queue", "/analytics", "/profile"];
+const PUBLIC_ROUTES = ["/", "/complete-signup", "/auth"];
+
+function isScoutRoute(p: string)  { return SCOUT_ROUTES.some((r) => p === r || p.startsWith(r + "/")); }
+function isTeamRoute(p: string)   { return TEAM_ROUTES.some((r) => p === r || p.startsWith(r + "/")); }
+function isPublicRoute(p: string) { return PUBLIC_ROUTES.some((r) => p === r || p.startsWith(r + "/")); }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Always allow: static files, auth pages, root login, API
+  // Always allow: static files, API routes, public pages
   if (
     pathname.startsWith("/_next/") ||
+    pathname.startsWith("/favicon.ico") ||
     pathname.startsWith("/api/") ||
-    pathname === "/" ||
-    pathname.startsWith("/complete-signup") ||
-    pathname === "/favicon.ico"
+    isPublicRoute(pathname)
   ) {
     return NextResponse.next();
   }
 
-  // Cron protection in production
-  if (pathname.startsWith("/api/internal/scheduler")) {
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && !cronSecret.startsWith("TODO_") && process.env.NODE_ENV === "production") {
-      const authHeader = request.headers.get("authorization");
-      if (authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+  // ── Demo mode check ─────────────────────────────────────────────────────────
+  const demoCookie = request.cookies.get("quanta_demo_role")?.value;
+
+  if (demoCookie) {
+    // Demo scout trying to access team pages
+    if (demoCookie === "scout" && isTeamRoute(pathname)) {
+      return NextResponse.redirect(new URL("/scout", request.url));
+    }
+    // Demo team trying to access scout pages
+    if (demoCookie === "quanta" && isScoutRoute(pathname)) {
+      return NextResponse.redirect(new URL("/inbox", request.url));
     }
     return NextResponse.next();
   }
 
+  // ── Real Supabase session check ──────────────────────────────────────────────
   let response = NextResponse.next({ request });
 
-  // Create Supabase client that can refresh the session cookie
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -52,23 +59,15 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // No session — only block protected routes, allow demo mode through
   if (!user) {
-    const isTeamRoute = TEAM_ROUTES.some((r) => pathname.startsWith(r));
-    const isScoutRoute = SCOUT_ROUTES.some((r) => pathname.startsWith(r));
-
-    // In development: let everything through (demo mode works without auth)
-    if (process.env.NODE_ENV === "development") return response;
-
-    // In production: enforce auth on protected routes
-    if (isTeamRoute || isScoutRoute) {
+    // No session, no demo cookie — redirect to login
+    if (isScoutRoute(pathname) || isTeamRoute(pathname)) {
       return NextResponse.redirect(new URL("/", request.url));
     }
-
     return response;
   }
 
-  // Session exists — get role and enforce route access
+  // Session exists — enforce role-based routing
   const { data: roleData } = await supabase
     .from("user_roles")
     .select("role")
@@ -77,14 +76,10 @@ export async function middleware(request: NextRequest) {
 
   const role = roleData?.role;
 
-  const isTeamRoute = TEAM_ROUTES.some((r) => pathname.startsWith(r));
-  const isScoutRoute = SCOUT_ROUTES.some((r) => pathname.startsWith(r));
-
-  if (isTeamRoute && role !== "quanta" && role !== "admin") {
+  if (isTeamRoute(pathname) && role !== "quanta" && role !== "admin") {
     return NextResponse.redirect(new URL("/scout", request.url));
   }
-
-  if (isScoutRoute && role !== "scout") {
+  if (isScoutRoute(pathname) && role !== "scout") {
     return NextResponse.redirect(new URL("/inbox", request.url));
   }
 
