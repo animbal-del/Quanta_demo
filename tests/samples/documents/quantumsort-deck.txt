@@ -1,0 +1,145 @@
+QUANTUMSORT — INVESTOR PITCH DECK
+Series: Pre-Seed
+Date: May 2026
+Contact: priya.shah@quantumsort.io
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 1 — THE PROBLEM
+
+Logistics companies spend 12-18% of operational costs on route optimization.
+Current solutions (Google Maps for Business, HERE Routing) use classical
+algorithms that become exponentially slower as route complexity grows.
+
+A fleet of 500 vehicles across 10,000 delivery points takes:
+- Classical algorithm: 4.2 hours to compute
+- QuantumSort: 8 minutes
+
+At peak holiday seasons, most logistics companies simply give up on
+optimization and fall back to manual dispatching.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 2 — THE SOLUTION
+
+QuantumSort is a quantum-classical hybrid optimization engine for
+large-scale logistics routing.
+
+We use quantum annealing for the NP-hard combinatorial core of the
+vehicle routing problem (VRP), combined with classical post-processing
+to deliver practical, deployable routes in minutes rather than hours.
+
+Key capabilities:
+→ Handles 500+ vehicles, 50,000+ waypoints in real time
+→ Integrates via REST API with existing TMS/WMS systems
+→ Reduces total route distance by an average of 23%
+→ Deployed on D-Wave Advantage quantum hardware via cloud
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 3 — FOUNDING TEAM
+
+PRIYA SHAH — CEO
+→ PhD Operations Research, IIT Delhi
+→ Former Senior Researcher, IBM Quantum (New York, 4 years)
+→ Published 6 papers on quantum optimization in logistics contexts
+→ Led $2M IBM research contract on quantum routing
+
+ARJUN KRISHNA — CTO
+→ MS Computer Science, BITS Pilani
+→ Former Staff Engineer, Delhivery (India's largest logistics company)
+→ Built the core routing engine used by Delhivery for 800,000 daily deliveries
+→ Deep knowledge of logistics TMS/WMS integration landscape
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 4 — TRACTION & VALIDATION
+
+Pilot customers (paying):
+1. Shadowfax Technologies — 3,000 vehicle fleet, ₹4,00,000/month
+2. WareIQ (fulfillment network) — API integration, ₹1,80,000/month
+
+Total MRR: ₹5,80,000 (~$7,000 USD)
+
+Waitlist: 8 additional logistics companies including 2 large e-commerce players
+
+Performance benchmarks from Shadowfax pilot:
+→ 23% reduction in total distance driven
+→ 31% reduction in route computation time vs previous vendor
+→ Fuel savings: ₹28 lakhs over 4 months
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 5 — MARKET SIZE
+
+Total Addressable Market: $12.8B (global logistics optimization software)
+Serviceable Addressable Market: $1.4B (India + Southeast Asia enterprise logistics)
+Serviceable Obtainable Market (3-year): $45M
+
+Market drivers:
+→ Indian logistics market growing at 11% CAGR
+→ E-commerce boom driving last-mile delivery complexity
+→ Quantum hardware costs dropping 40% year-over-year
+→ No current vendor solving the NP-hard VRP at scale commercially
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 6 — BUSINESS MODEL
+
+SaaS pricing — API calls + monthly base:
+→ Starter: ₹1,50,000/month (up to 100 vehicles, 10K waypoints/day)
+→ Growth: ₹4,00,000/month (up to 500 vehicles, 50K waypoints/day)
+→ Enterprise: Custom (500+ vehicles, white-labeling available)
+
+Net Revenue Retention: 118% (Shadowfax has expanded 2x since pilot start)
+Gross Margin: 72% (quantum compute costs are the primary COGS)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 7 — COMPETITIVE LANDSCAPE
+
+Competitor          | Scale Limit      | Approach      | India Focus
+--------------------|------------------|---------------|------------
+Google Maps Biz     | 25 waypoints/req | Classical     | No
+HERE Routing        | 250 waypoints    | Classical     | Partial
+Ortec (Netherlands) | 1,000 waypoints  | Heuristic     | No
+QuantumSort         | 50,000 waypoints | Quantum-hybrid| Yes
+
+No quantum-native competitor exists in the Indian logistics market.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 8 — FINANCIALS & ASK
+
+Current ARR: ₹69,60,000 (~$84,000 USD)
+Burn rate: ₹12,00,000/month (~$14,500 USD)
+Runway: 8 months at current burn
+
+Raising: ₹4 crore (~$480,000 USD) Pre-Seed
+Use of funds:
+→ 40% — Quantum compute infrastructure (D-Wave cloud credits)
+→ 30% — Engineering team (2 senior hires)
+→ 20% — Enterprise sales and BD
+→ 10% — Legal, IP, compliance
+
+Target at Series A (18 months): $500K ARR, 15 enterprise customers
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SLIDE 9 — IP & MOAT
+
+Filed patents:
+→ "Quantum-Classical Hybrid Vehicle Routing Method" — filed March 2026 (India + PCT)
+→ "Real-time QUBO Formulation for Dynamic Fleet Routing" — filing in progress
+
+Proprietary dataset:
+→ 18 months of anonymized routing data from Delhivery (Arjun's prior work)
+→ Training data for classical post-processing layer
+
+Key moat: The combination of quantum expertise (Priya's IBM background) +
+logistics domain expertise (Arjun's Delhivery experience) is extremely rare.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Contact: priya.shah@quantumsort.io | +91 98101 23456
+LinkedIn: linkedin.com/company/quantumsort

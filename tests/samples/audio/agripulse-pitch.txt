@@ -1,0 +1,51 @@
+AGRIPULSE — 2-MINUTE VOICE PITCH SCRIPT
+Use this to test the Voice Pitch Studio at /add-startup
+
+Read this out loud as if you're a scout describing a startup you just met.
+Time yourself — aim for 90-120 seconds. Natural pace, slightly conversational.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+— START RECORDING, THEN READ: —
+
+Okay so I met this founder Rahul at an agriculture meetup in Pune last week.
+He's building something called AgriPulse — and basically, small farmers in
+Maharashtra have no idea when to irrigate their crops. They just guess based
+on how the soil looks, and they end up wasting 35 to 40 percent more water
+than they need to, and they lose crops worth lakhs every year.
+
+So what Rahul built is this really cheap soil sensor — it costs about 400
+rupees to make — and it connects to a simple WhatsApp bot that tells farmers
+in Marathi exactly when to water and how much. No app to download, no
+technical knowledge needed. Just WhatsApp.
+
+The traction is what got me excited. He has 247 farms on the platform already.
+They're paying 500 rupees a month each. And he's seeing 38 percent water
+savings on average across those farms.
+
+The founders are interesting — Rahul grew up on a farm in Nashik, his family
+actually lost crops to bad irrigation which is why he started this. His
+co-founder Kiran is ex-Bosch IoT engineer who built the sensor hardware.
+
+They've also signed an MOU with the Nashik District Agriculture Office to
+promote the product to PM-KISAN beneficiary farms. That's meaningful government
+validation.
+
+They're raising about 1.5 crore to scale sensor manufacturing and expand to
+more districts. I think this is very worth a look.
+
+— STOP RECORDING —
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INDICATORS THIS SCRIPT COVERS:
+✅ Problem — water waste, crop loss from bad irrigation
+✅ Product — ₹400 soil sensor + WhatsApp bot in Marathi
+✅ Why interesting — personal founder story, domain expertise, government MOU
+✅ Traction — 247 farms, ₹500/month, 38% water savings, government partnership
+
+After recording, the AI should extract:
+- Startup name: AgriPulse
+- Founder: Rahul (+ Kiran)
+- Category: AgriTech / IoT
+- Traction signals: 247 farms, ₹500/month, MOU with Nashik Agriculture Office
+- Missing: formal deck, cap table, expansion roadmap
