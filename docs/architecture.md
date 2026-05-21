@@ -5,7 +5,148 @@
 
 ---
 
-## 1. High-Level System Architecture
+## 0. Multi-Agent Pipeline (Post-Submission)
+
+When a scout submits a deal, a 7-step agent pipeline runs automatically in the background. The submit API returns immediately — the pipeline runs async so the scout never waits.
+
+```
+Scout hits "Submit to Quanta"
+        │
+        ▼
+POST /api/startup/:id/submit
+  ├── Sets deals.status = 'submitted'   (instant, scout sees confirmation)
+  └── Fires runPostSubmissionPipeline() in background (non-blocking)
+
+        ▼ Background — ~8-15 seconds total
+
+┌──────────────────────────────────────────────────────────────────────┐
+│                    POST-SUBMISSION PIPELINE                          │
+│                   src/agents/pipeline/index.ts                       │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ STEP 1  Duplicate Detection Agent                           │    │
+│  │         src/agents/duplicate/index.ts                       │    │
+│  │         Model: llama-3.1-8b-instant (Groq, fast)            │    │
+│  │                                                             │    │
+│  │  • Fetches last 30 submitted deals from Supabase            │    │
+│  │  • LLM compares new deal vs existing (name, desc, founder)  │    │
+│  │  • If confidence ≥ 80%: adds internal note flagging it      │    │
+│  │  • If duplicate found: STOPS HERE (rest of pipeline skipped)│    │
+│  └─────────────────────────────┬───────────────────────────────┘    │
+│                                │ (only if NOT duplicate)             │
+│                                ▼                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ STEP 2  Parallel Analysis (Promise.allSettled)               │   │
+│  │                                                              │   │
+│  │  ┌──────────────────────────────────────────────────────┐   │   │
+│  │  │ 2A  Signal Extraction Agent                          │   │   │
+│  │  │     src/agents/signals/index.ts → generateSignals()  │   │   │
+│  │  │     Model: llama-3.3-70b-versatile (Groq)            │   │   │
+│  │  │     Prompt: prompts/signals/signal-extraction.prompt  │   │   │
+│  │  │     Output: founder/market/traction/conviction levels │   │   │
+│  │  │             + risk_flags[]                           │   │   │
+│  │  │     Saves to: ai_outputs (type = signal_summary)     │   │   │
+│  │  └──────────────────────────────────────────────────────┘   │   │
+│  │                                                              │   │
+│  │  ┌──────────────────────────────────────────────────────┐   │   │
+│  │  │ 2B  Internal Brief Agent                             │   │   │
+│  │  │     src/agents/signals/index.ts → generateBrief()    │   │   │
+│  │  │     Model: llama-3.3-70b-versatile (Groq)            │   │   │
+│  │  │     Prompt: prompts/briefing/internal-brief.prompt    │   │   │
+│  │  │     Output: what_it_does, why_it_may_matter,         │   │   │
+│  │  │             known_facts, open_questions,              │   │   │
+│  │  │             suggested_next_action                     │   │   │
+│  │  │     Saves to: ai_outputs (type = internal_brief)     │   │   │
+│  │  └──────────────────────────────────────────────────────┘   │   │
+│  │                                                              │   │
+│  │  ┌──────────────────────────────────────────────────────┐   │   │
+│  │  │ 2C  Enrichment Agent                                 │   │   │
+│  │  │     src/agents/enrichment/index.ts                   │   │   │
+│  │  │     Model: llama-3.3-70b-versatile (Groq)            │   │   │
+│  │  │     Prompt: prompts/enrichment/enrichment.prompt      │   │   │
+│  │  │     Input: extracted_text from uploaded deal_files    │   │   │
+│  │  │     Output: fills missing deal fields from docs,      │   │   │
+│  │  │             creates missing_info_tasks for gaps       │   │   │
+│  │  │     Skipped if no files uploaded                     │   │   │
+│  │  └──────────────────────────────────────────────────────┘   │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                │                                     │
+│                                ▼                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ STEP 3  Review Label Agent                                   │   │
+│  │         src/agents/signals/index.ts → assignReviewLabel()    │   │
+│  │         Model: llama-3.1-8b-instant (Groq)                   │   │
+│  │         Prompt: prompts/signals/review-label.prompt           │   │
+│  │         Input: signal output from Step 2A                    │   │
+│  │         Output: strong_candidate | worth_exploring |          │   │
+│  │                 needs_more_info                               │   │
+│  │         Writes to: deals.review_label                        │   │
+│  └─────────────────────────────┬────────────────────────────────┘   │
+│                                │                                     │
+│                                ▼                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ STEP 4  Next Action Agent                                    │   │
+│  │         src/agents/signals/index.ts → generateNextAction()   │   │
+│  │         Model: llama-3.1-8b-instant (Groq)                   │   │
+│  │         Prompt: prompts/signals/next-action.prompt            │   │
+│  │         Input: brief + signals + missing tasks               │   │
+│  │         Output: max 15-word specific action for Quanta       │   │
+│  │         e.g. "Ask scout for founder intro and pilot names"   │   │
+│  │         Saves to: ai_outputs                                 │   │
+│  └─────────────────────────────┬────────────────────────────────┘   │
+│                                │                                     │
+│                                ▼                                     │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │ STEP 5  Status Promotion                                     │   │
+│  │         Has pending missing_info_tasks? → needs_info         │   │
+│  │         No missing tasks? → under_review                     │   │
+│  │         Updates: deals.status                                │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│                                                                      │
+│  Error handling: each step in try/catch — one failure never          │
+│  blocks others. Uses Promise.allSettled for Step 2 parallel block.   │
+│  Full step log printed to server console.                            │
+└──────────────────────────────────────────────────────────────────────┘
+
+        ▼
+Deal appears in Quanta /inbox and /deals with:
+  ✓ Signal cards (founder/market/traction/conviction + risk flags)
+  ✓ Internal brief (facts, open questions, suggested action)
+  ✓ Review label badge (Strong Candidate / Worth Exploring / Needs More Info)
+  ✓ Duplicate flag (internal note if match found)
+  ✓ Auto-promoted status (needs_info or under_review)
+```
+
+**Agent files:**
+```
+src/agents/
+  pipeline/index.ts      ← orchestrator — calls all agents in sequence
+  duplicate/index.ts     ← Step 1: duplicate detection
+  signals/index.ts       ← Steps 2A (signals), 2B (brief), 3 (label), 4 (next action)
+  enrichment/index.ts    ← Step 2C: document enrichment
+  intake/index.ts        ← submission-time extraction (called during add-startup flow)
+  partner/index.ts       ← partner question rewrite + send via OpenClaw
+  followup/index.ts      ← scheduled follow-up messages to scouts
+  checkin/index.ts       ← weekly check-in messages to scouts
+```
+
+**Prompt files for pipeline agents:**
+```
+src/prompts/
+  signals/
+    signal-extraction.prompt.ts     ← qualitative VC signal cards
+    review-label.prompt.ts          ← strong_candidate | worth_exploring | needs_more_info
+    next-action.prompt.ts           ← 15-word specific next step
+  briefing/
+    internal-brief.prompt.ts        ← partner-facing deal summary
+  enrichment/
+    enrichment.prompt.ts            ← doc enrichment
+    duplicate-detection.prompt.ts   ← LLM duplicate comparison
+```
+
+---
+
+## 1. High-Level System Architecture (overview of all layers)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
