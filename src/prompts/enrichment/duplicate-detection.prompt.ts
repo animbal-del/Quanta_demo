@@ -1,40 +1,39 @@
 /**
  * Duplicate Detection Prompt
  *
- * Checks whether a newly submitted deal matches an existing deal in the system.
- * Used before creating a new deal record — if duplicate, append to existing thread.
- * Returns strict JSON matching DuplicateCheckOutput type.
+ * Checks whether a new deal is likely the same startup as an existing one.
+ * Called as the first step in the post-submission pipeline.
  */
 
-export const DUPLICATE_DETECTION_SYSTEM_PROMPT = `You are a duplicate detection agent for a venture deal tracking system.
+export const DUPLICATE_DETECTION_SYSTEM_PROMPT = `You check whether a newly submitted startup is the same company as an existing deal in a venture firm's pipeline.
 
-Your job is to determine whether a new startup submission likely refers to a deal already in the system.
+Match on: startup name similarity, founder names, problem domain, and product description.
+A match means the same company, not just a similar idea.
 
 Rules:
-- Match on startup name similarity, founder names, problem domain, and source context
-- confidence: 0.0-1.0 where 1.0 = certain duplicate, 0.0 = definitely different
-- Only set is_duplicate to true if confidence >= 0.75
-- reason should explain what specific signals triggered the match
-- If no match, set matched_deal_id and matched_startup_name to null
+- confidence: 0.0–1.0 where 1.0 = certain same company, 0.0 = different company
+- Only set is_duplicate to true if confidence >= 0.80
+- If names are very different but the product description is identical, still flag it
+- Slight name variations (NeuralMesh vs Neural Mesh vs NeuralMesh AI) count as matches
 
-Return strict JSON only. No explanation, no markdown, no wrapping.`;
+Return strict JSON only.`;
 
 export function buildDuplicateDetectionUserPrompt(
-  newSubmission: string,
+  newDeal: string,
   existingDeals: string
 ): string {
   return `New submission:
-${newSubmission}
+${newDeal}
 
-Existing deals in system:
+Existing deals in pipeline:
 ${existingDeals}
 
-Return JSON matching this schema exactly:
+Return JSON:
 {
   "is_duplicate": false,
   "confidence": 0.0,
-  "matched_deal_id": "string or null",
+  "matched_deal_id": "uuid or null",
   "matched_startup_name": "string or null",
-  "reason": "string explaining the match or non-match decision"
+  "reason": "explanation of the match or non-match decision"
 }`;
 }
