@@ -1,170 +1,246 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft,
-  FileText,
-  Mail,
-  MessageCircle,
-  Mic,
-  Paperclip,
-  Plus,
-  Send,
-  Upload,
+  ArrowLeft, Send, Upload, Mic, Mail, AlertCircle,
+  CheckCircle2, FileText, Loader2, Plus,
 } from "lucide-react";
 
-const messages = [
-  { sender: "quanta", body: "Do you know who the pilot customers are?", time: "Today" },
-  { sender: "scout", body: "Will check with Rohan and report back.", time: "Today" },
-  { sender: "system", body: "When should we follow up?", time: "Today" },
-];
-
-export default function StartupDetailPage() {
-  const [emailOpen, setEmailOpen] = useState(false);
-
-  return (
-    <main className="mx-auto min-h-screen max-w-lg bg-white">
-      <header className="border-b border-gray-200 px-4 py-4">
-        <div className="mb-3 flex items-center gap-3">
-          <Link href="/scout" className="text-gray-400 hover:text-gray-600">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className="text-lg font-semibold text-gray-950">FlowOps</h1>
-            <p className="text-xs text-gray-500">AI logistics agents</p>
-          </div>
-        </div>
-        <span className="inline-flex rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
-          Needs Info
-        </span>
-      </header>
-
-      <div className="space-y-4 px-4 py-5">
-        <section className="rounded-lg border border-gray-200 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-950">Summary</h2>
-          <div className="space-y-2 text-sm">
-            <Row label="Founder" value="Rohan" />
-            <Row label="Category" value="AI / Logistics" />
-            <Row label="Why interesting" value="Technical founder, early traction" />
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-gray-200 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-950">Missing Info</h2>
-            <button className="text-xs font-medium text-indigo-600">Update</button>
-          </div>
-          <div className="space-y-2">
-            {["Deck", "Pilot customers"].map((item) => (
-              <div key={item} className="flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm">
-                <span className="text-amber-900">{item}</span>
-                <span className="text-xs font-medium text-amber-700">Pending</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-gray-200 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <MessageCircle size={15} className="text-indigo-600" />
-            <h2 className="text-sm font-semibold text-gray-950">Conversation</h2>
-          </div>
-          <div className="space-y-2">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`rounded-lg px-3 py-2 text-sm ${
-                  message.sender === "scout"
-                    ? "ml-8 bg-indigo-600 text-white"
-                    : message.sender === "system"
-                    ? "bg-gray-50 text-gray-600"
-                    : "mr-8 bg-gray-100 text-gray-900"
-                }`}
-              >
-                <p>{message.body}</p>
-                <p className={`mt-1 text-xs ${message.sender === "scout" ? "text-indigo-200" : "text-gray-400"}`}>
-                  {message.sender === "scout" ? "You" : message.sender === "quanta" ? "Quanta" : "System"} · {message.time}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2">
-            <input className="flex-1 bg-transparent text-sm outline-none" placeholder="Reply to Quanta..." />
-            <button className="text-indigo-600">
-              <Send size={15} />
-            </button>
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-gray-200 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-950">Uploads</h2>
-          <div className="space-y-2">
-            {["Notes.m4a", "Hackathon screenshot.png"].map((item) => (
-              <div key={item} className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                <FileText size={14} className="text-gray-400" />
-                {item}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid grid-cols-2 gap-2 pb-6">
-          <Action icon={Plus} label="Add Update" />
-          <Action icon={Upload} label="Upload Document" />
-          <Action icon={Mic} label="Record Note" />
-          <button
-            onClick={() => setEmailOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 py-3 text-sm font-medium text-white"
-          >
-            <Mail size={15} />
-            Generate Email
-          </button>
-        </section>
-      </div>
-
-      {emailOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4">
-          <div className="w-full rounded-lg bg-white p-5">
-            <h2 className="text-base font-semibold text-gray-950">Generate Email</h2>
-            <div className="mt-4 rounded-lg border border-gray-200 p-3 text-sm text-gray-700">
-              <p className="font-medium">To: Rohan</p>
-              <p className="mt-3">
-                Hi Rohan, could you share your deck and any details on the pilot customers when you get a chance?
-              </p>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button className="flex-1 rounded-lg border border-gray-200 py-2 text-sm font-medium text-gray-700">
-                Copy
-              </button>
-              <button className="flex-1 rounded-lg bg-indigo-600 py-2 text-sm font-medium text-white">
-                Send via Gmail
-              </button>
-            </div>
-            <button onClick={() => setEmailOpen(false)} className="mt-3 w-full py-2 text-sm text-gray-500">
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-    </main>
-  );
+interface Message { sender_type: string; body: string; created_at: string }
+interface MissingTask { id: string; info_needed: string; expected_date: string | null; status: string }
+interface DealFile { file_name: string | null; summary: string | null }
+interface Deal {
+  id: string; startup_name: string | null; one_line_description: string | null;
+  category: string | null; status: string; scout_conviction: string | null;
+  messages: Message[]; missing_info_tasks: MissingTask[]; files: DealFile[];
+  founders: { full_name: string | null }[];
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+const STATUS_BADGE: Record<string, string> = {
+  needs_info:    "bg-amber-50 text-amber-700",
+  under_review:  "bg-violet-50 text-violet-700",
+  monitor:       "bg-slate-50 text-slate-600",
+  intro_requested: "bg-emerald-50 text-emerald-700",
+  submitted:     "bg-blue-50 text-blue-700",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  needs_info: "Needs Info", under_review: "Under Review",
+  monitor: "Monitoring", intro_requested: "Intro Requested",
+  submitted: "Submitted", draft: "Draft",
+};
+
+function fmt(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function GenerateEmailModal({ startupName, founders, onClose }: { startupName: string; founders: { full_name: string | null }[]; onClose: () => void }) {
+  const founderName = founders[0]?.full_name ?? "the team";
+  const email = `Hi ${founderName},\n\nHope you're doing well. We'd love to learn more about ${startupName}.\n\nCould you share your pitch deck and any details on your current customers or traction when you get a chance?\n\nLooking forward to connecting.\n\nBest,`;
+
   return (
-    <div className="flex justify-between gap-4">
-      <span className="text-gray-400">{label}</span>
-      <span className="max-w-[62%] text-right font-medium text-gray-900">{value}</span>
+    <div className="fixed inset-0 z-50 flex items-end bg-black/30 p-4">
+      <div className="w-full max-w-lg mx-auto bg-white rounded-2xl p-5 shadow-xl">
+        <h2 className="text-base font-semibold text-gray-950 mb-3">Generated Email</h2>
+        <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 font-mono whitespace-pre-wrap border border-gray-200 mb-4 max-h-48 overflow-y-auto">
+          {email}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => { navigator.clipboard.writeText(email); }}
+            className="flex-1 h-10 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Copy
+          </button>
+          <a href={`mailto:?subject=Quick follow-up on ${startupName}&body=${encodeURIComponent(email)}`}
+            className="flex-1 h-10 bg-gray-950 hover:bg-gray-800 text-white text-sm font-medium rounded-xl flex items-center justify-center">
+            Open in Email
+          </a>
+        </div>
+        <button onClick={onClose} className="mt-3 w-full text-sm text-gray-400 hover:text-gray-600 py-1">Close</button>
+      </div>
     </div>
   );
 }
 
-function Action({ icon: Icon, label }: { icon: typeof Paperclip; label: string }) {
+export default function StartupDetailPage() {
+  const { id } = useParams() as { id: string };
+  const [deal, setDeal] = useState<Deal | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch(`/api/internal/deals/${id}`)
+      .then((r) => r.json())
+      .then(setDeal)
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [deal?.messages]);
+
+  async function sendReply() {
+    if (!reply.trim() || !deal) return;
+    setSending(true);
+    const body = reply;
+    setReply("");
+
+    const res = await fetch(`/api/scout/deals/${id}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body }),
+    });
+    const data = await res.json();
+
+    // Optimistically add messages
+    setDeal((prev) => prev ? {
+      ...prev,
+      messages: [
+        ...prev.messages,
+        { sender_type: "scout", body, created_at: new Date().toISOString() },
+        { sender_type: "ai", body: data.ai_reply ?? "Got it.", created_at: new Date().toISOString() },
+      ],
+    } : prev);
+    setSending(false);
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-screen"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
+  );
+
+  if (!deal) return (
+    <div className="flex items-center justify-center h-screen text-sm text-gray-400">Startup not found.</div>
+  );
+
+  const badge = STATUS_BADGE[deal.status];
+  const statusLabel = STATUS_LABEL[deal.status] ?? deal.status;
+  const pendingTasks = deal.missing_info_tasks.filter((t) => t.status === "pending");
+
   return (
-    <button className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-3 text-sm font-medium text-gray-700">
-      <Icon size={15} />
-      {label}
-    </button>
+    <main className="mx-auto min-h-screen max-w-lg bg-white flex flex-col">
+      {showEmail && deal && (
+        <GenerateEmailModal startupName={deal.startup_name ?? "this startup"} founders={deal.founders} onClose={() => setShowEmail(false)} />
+      )}
+
+      {/* Header */}
+      <header className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3.5 z-10">
+        <div className="flex items-center gap-3 mb-2">
+          <Link href="/scout" className="text-gray-400 hover:text-gray-700"><ArrowLeft size={18} /></Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-semibold text-gray-950 truncate">{deal.startup_name ?? "Unnamed"}</h1>
+            <p className="text-xs text-gray-400 truncate">{deal.one_line_description}</p>
+          </div>
+          {badge && (
+            <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${badge}`}>{statusLabel}</span>
+          )}
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Missing info section */}
+        {pendingTasks.length > 0 && (
+          <div className="mx-4 my-4 bg-amber-50 border border-amber-100 rounded-xl p-4">
+            <p className="text-xs font-semibold text-amber-800 mb-2 flex items-center gap-1.5">
+              <AlertCircle size={12} />Still needed
+            </p>
+            <div className="space-y-1.5">
+              {pendingTasks.map((t) => (
+                <div key={t.id} className="flex items-center justify-between">
+                  <span className="text-xs text-amber-900">{t.info_needed}</span>
+                  {t.expected_date
+                    ? <span className="text-xs text-amber-600">Expected {t.expected_date}</span>
+                    : <span className="text-xs text-amber-400">No date set</span>
+                  }
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Conversation thread */}
+        <div className="px-4 pb-4 space-y-2">
+          {deal.messages.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">No messages yet.</div>
+          ) : deal.messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.sender_type === "scout" ? "justify-end" : "justify-start"}`}>
+              {msg.sender_type !== "scout" && (
+                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-2 mt-auto shrink-0 text-xs font-bold text-gray-500">
+                  Q
+                </div>
+              )}
+              <div className={`max-w-xs rounded-2xl px-3.5 py-2.5 text-sm ${
+                msg.sender_type === "scout"
+                  ? "bg-gray-950 text-white rounded-br-sm"
+                  : msg.sender_type === "system"
+                  ? "bg-gray-50 text-gray-600 rounded-bl-sm border border-gray-100"
+                  : "bg-gray-100 text-gray-900 rounded-bl-sm"
+              }`}>
+                <p className="leading-relaxed">{msg.body}</p>
+                <p className={`text-[10px] mt-1 ${msg.sender_type === "scout" ? "text-gray-400" : "text-gray-400"}`}>
+                  {fmt(msg.created_at)}
+                </p>
+              </div>
+            </div>
+          ))}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Files */}
+        {deal.files.length > 0 && (
+          <div className="mx-4 mb-4 border border-gray-100 rounded-xl p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Uploads</p>
+            <div className="space-y-1.5">
+              {deal.files.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                  <FileText size={13} className="text-gray-400 shrink-0" />
+                  <span className="truncate">{f.file_name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick actions */}
+        <div className="grid grid-cols-3 gap-2 px-4 pb-4">
+          <button onClick={() => setShowEmail(true)}
+            className="flex flex-col items-center gap-1.5 border border-gray-100 rounded-xl p-3 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+            <Mail size={15} className="text-gray-400" />Generate Email
+          </button>
+          <label className="flex flex-col items-center gap-1.5 border border-gray-100 rounded-xl p-3 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
+            <Upload size={15} className="text-gray-400" />Upload Doc
+            <input type="file" className="hidden" />
+          </label>
+          <button className="flex flex-col items-center gap-1.5 border border-gray-100 rounded-xl p-3 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+            <Mic size={15} className="text-gray-400" />Add Note
+          </button>
+        </div>
+      </div>
+
+      {/* Reply input */}
+      <div className="px-4 pb-6 pt-2 border-t border-gray-100 shrink-0">
+        <div className="flex items-end gap-2 bg-gray-100 rounded-2xl px-3 py-2">
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+            placeholder="Reply to Quanta…"
+            rows={1}
+            className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 resize-none focus:outline-none leading-relaxed py-1"
+            style={{ overflow: "hidden" }}
+            onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }}
+          />
+          <button onClick={sendReply} disabled={!reply.trim() || sending}
+            className={`mb-1 w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+              reply.trim() && !sending ? "bg-gray-950 text-white" : "bg-gray-300 text-gray-400 cursor-not-allowed"
+            }`}>
+            {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+          </button>
+        </div>
+      </div>
+    </main>
   );
 }

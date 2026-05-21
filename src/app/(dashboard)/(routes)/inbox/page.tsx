@@ -1,270 +1,210 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowUpRight, MessageSquare, Star, Clock, ChevronRight, AlertCircle, Inbox, PlayCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { MessageSquare, Star, Clock, AlertCircle, ArrowUpRight, Loader2 } from "lucide-react";
 
-const DEMO_DEALS = [
-  {
-    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-    startup_name: "FlowOps",
-    summary: "AI agents for logistics dispatch automation",
-    status: "needs_info",
-    priority: "high",
-    scout: "Amit Sharma",
-    category: "AI / Logistics",
-    source: "Purdue Hackathon",
-    potential: "High Potential",
-    signals: {
-      founder: { level: "strong", label: "Strong" },
-      traction: { level: "early", label: "Early" },
-      market: { level: "unclear", label: "Unclear" },
-      conviction: { level: "high", label: "High" },
-    },
-    missing: ["Pitch deck", "Pilot customer details", "Founder intro"],
-    next_action: "Follow-up for deck scheduled May 23",
-    updated: "2 hours ago",
-  },
-  {
-    id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-    startup_name: "CampusPay",
-    summary: "Payments platform for campus clubs and student organizations",
-    status: "under_review",
-    priority: "normal",
-    scout: "Sarah Chen",
-    category: "Fintech",
-    source: "University network",
-    potential: "Needs Clarity",
-    signals: {
-      founder: { level: "medium", label: "Medium" },
-      traction: { level: "weak", label: "Weak" },
-      market: { level: "medium", label: "Medium" },
-      conviction: { level: "medium", label: "Medium" },
-    },
-    missing: ["User count / traction numbers"],
-    next_action: "Ask for traction details",
-    updated: "1 day ago",
-  },
-  {
-    id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
-    startup_name: "MedSync AI",
-    summary: "AI-powered patient scheduling and care coordination",
-    status: "monitor",
-    priority: "normal",
-    scout: "Jordan Lee",
-    category: "Healthcare AI",
-    source: "Mutual referral",
-    potential: "Medium",
-    signals: {
-      founder: { level: "strong", label: "Strong" },
-      traction: { level: "medium", label: "Medium" },
-      market: { level: "strong", label: "Strong" },
-      conviction: { level: "medium", label: "Medium" },
-    },
-    missing: [],
-    next_action: "No action needed",
-    updated: "3 days ago",
-  },
-];
+interface Deal {
+  id: string; startup_name: string | null; summary: string | null;
+  status: string; priority: string; scout: { full_name: string } | null;
+  signals: { founder_signal: { level: string }; traction_signal: { level: string } } | null;
+  next_action: string | null; updated_at: string;
+}
+
+const STATUS: Record<string, { label: string; dot: string }> = {
+  draft:            { label: "Draft",            dot: "bg-gray-300" },
+  submitted:        { label: "Submitted",        dot: "bg-blue-400" },
+  needs_info:       { label: "Needs Info",       dot: "bg-amber-400" },
+  under_review:     { label: "Under Review",     dot: "bg-violet-400" },
+  intro_requested:  { label: "Intro Requested",  dot: "bg-emerald-400" },
+  monitor:          { label: "Monitor",          dot: "bg-slate-300" },
+  archived:         { label: "Archived",         dot: "bg-gray-200" },
+  rejected:         { label: "Rejected",         dot: "bg-red-300" },
+};
+
+const SIGNAL_COLOR: Record<string, string> = {
+  strong: "text-emerald-600", high: "text-emerald-600",
+  medium: "text-amber-600",  early: "text-blue-600",
+  weak:   "text-red-500",    unclear: "text-gray-400",
+};
 
 const FILTERS = [
-  { label: "All", value: "all" },
-  { label: "Needs Info", value: "needs_info" },
-  { label: "Under Review", value: "under_review" },
+  { label: "All",         value: "all" },
+  { label: "Needs Info",  value: "needs_info" },
+  { label: "Under Review",value: "under_review" },
   { label: "High Signal", value: "high_signal" },
-  { label: "Monitor", value: "monitor" },
+  { label: "Monitor",     value: "monitor" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft: { label: "Draft", className: "bg-gray-100 text-gray-600" },
-  submitted: { label: "Submitted", className: "bg-blue-100 text-blue-700" },
-  needs_info: { label: "Needs Info", className: "bg-amber-100 text-amber-700" },
-  under_review: { label: "Under Review", className: "bg-purple-100 text-purple-700" },
-  intro_requested: { label: "Intro Requested", className: "bg-green-100 text-green-700" },
-  monitor: { label: "Monitor", className: "bg-slate-100 text-slate-600" },
-  archived: { label: "Archived", className: "bg-gray-100 text-gray-400" },
-  rejected: { label: "Rejected", className: "bg-red-100 text-red-600" },
-};
+function relativeTime(iso: string) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 3600)   return `${Math.round(diff / 60)}m ago`;
+  if (diff < 86400)  return `${Math.round(diff / 3600)}h ago`;
+  return `${Math.round(diff / 86400)}d ago`;
+}
 
-const SIGNAL_COLORS: Record<string, string> = {
-  strong: "text-emerald-600",
-  high: "text-emerald-600",
-  medium: "text-amber-600",
-  early: "text-blue-600",
-  weak: "text-red-500",
-  unclear: "text-gray-400",
-  low: "text-red-500",
-};
+function Skeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="bg-white border border-gray-100 rounded-xl p-5 animate-pulse">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-gray-200" />
+            <div className="h-4 bg-gray-100 rounded w-28" />
+            <div className="h-4 bg-gray-100 rounded w-16" />
+          </div>
+          <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
+          <div className="flex gap-6">
+            {[1, 2, 3].map((j) => <div key={j} className="h-3 bg-gray-100 rounded w-20" />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function InboxPage() {
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
 
-  const filtered = DEMO_DEALS.filter((d) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "high_signal") return d.priority === "high";
-    return d.status === activeFilter;
+  useEffect(() => {
+    fetch("/api/internal/deals")
+      .then((r) => r.json())
+      .then(setDeals)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = deals.filter((d) => {
+    if (filter === "all") return true;
+    if (filter === "high_signal") return d.priority === "high";
+    return d.status === filter;
   });
 
+  const needsInfo = deals.filter((d) => d.status === "needs_info").length;
+  const newToday = deals.filter((d) => {
+    const diff = (Date.now() - new Date(d.updated_at).getTime()) / 86400000;
+    return diff < 1;
+  }).length;
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Command Center</p>
-        <h1 className="text-xl font-semibold text-gray-900">Today</h1>
-        <div className="mt-4 grid grid-cols-3 gap-3">
+        <div className="flex items-baseline justify-between">
+          <h1 className="text-xl font-semibold text-gray-950">Command Center</h1>
+          <span className="text-xs text-gray-400">{deals.length} deals total</span>
+        </div>
+        <div className="mt-4 flex gap-3">
           {[
-            { label: "New startups", value: "8", icon: Inbox },
-            { label: "Need review", value: "5", icon: AlertCircle },
-            { label: "Follow-ups due", value: "6", icon: PlayCircle },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.label} className="rounded-lg border border-gray-200 bg-white p-4">
-                <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
-                  <Icon size={13} className="text-indigo-600" />
-                  {item.label}
-                </div>
-                <p className="text-2xl font-semibold text-gray-950">{item.value}</p>
-              </div>
-            );
-          })}
+            { label: "Updated today", value: newToday },
+            { label: "Need attention", value: needsInfo },
+            { label: "Total active", value: deals.filter(d => !["archived","rejected"].includes(d.status)).length },
+          ].map((s) => (
+            <div key={s.label} className="flex-1 bg-white border border-gray-100 rounded-xl px-4 py-3">
+              <p className="text-2xl font-bold text-gray-950">{s.value}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex gap-1.5 mb-5">
         {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setActiveFilter(f.value)}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              activeFilter === f.value
-                ? "bg-indigo-600 text-white"
-                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:text-gray-900"
-            }`}
-          >
+          <button key={f.value} onClick={() => setFilter(f.value)}
+            className={`px-3 h-8 rounded-lg text-sm font-medium transition-colors ${
+              filter === f.value
+                ? "bg-gray-950 text-white"
+                : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-900"
+            }`}>
             {f.label}
           </button>
         ))}
       </div>
 
-      {/* Deal cards */}
-      <div className="space-y-3">
-        {filtered.map((deal) => {
-          const status = STATUS_CONFIG[deal.status];
-          return (
-            <div
-              key={deal.id}
-              className="bg-white border border-gray-200 rounded-xl p-5 hover:border-indigo-200 hover:shadow-sm transition-all group"
-            >
-              <div className="flex items-start justify-between gap-4">
-                {/* Left content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {deal.priority === "high" && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                    )}
-                    <h2 className="font-semibold text-gray-900 text-base">
-                      {deal.startup_name}
-                    </h2>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.className}`}>
-                      {status.label}
-                    </span>
-                    <span className="text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
-                      {deal.potential}
-                    </span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {deal.category}
-                    </span>
+      {/* Deals */}
+      {loading ? <Skeleton /> : (
+        <div className="space-y-2">
+          {filtered.length === 0 && (
+            <div className="text-center py-16 text-gray-400 text-sm">No deals match this filter.</div>
+          )}
+          {filtered.map((deal) => {
+            const s = STATUS[deal.status] ?? STATUS.draft;
+            return (
+              <Link key={deal.id} href={`/deals/${deal.id}`}
+                className="block bg-white border border-gray-100 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all group">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    {/* Title row */}
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
+                      <span className="text-sm font-semibold text-gray-950 truncate">
+                        {deal.startup_name ?? "Unnamed"}
+                      </span>
+                      <span className="text-xs text-gray-400 shrink-0">{s.label}</span>
+                      {deal.priority === "high" && (
+                        <span className="text-xs text-red-600 bg-red-50 px-1.5 py-0.5 rounded font-medium shrink-0">High</span>
+                      )}
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-xs text-gray-500 mb-2.5 truncate">{deal.summary}</p>
+
+                    {/* Signals + meta */}
+                    <div className="flex items-center gap-3 text-xs">
+                      {deal.signals && (
+                        <>
+                          <span className="flex items-center gap-1 text-gray-400">
+                            Founder
+                            <span className={`font-medium capitalize ${SIGNAL_COLOR[deal.signals.founder_signal?.level] ?? "text-gray-400"}`}>
+                              {deal.signals.founder_signal?.level}
+                            </span>
+                          </span>
+                          <span className="text-gray-200">·</span>
+                          <span className="flex items-center gap-1 text-gray-400">
+                            Traction
+                            <span className={`font-medium capitalize ${SIGNAL_COLOR[deal.signals.traction_signal?.level] ?? "text-gray-400"}`}>
+                              {deal.signals.traction_signal?.level}
+                            </span>
+                          </span>
+                          <span className="text-gray-200">·</span>
+                        </>
+                      )}
+                      {deal.scout && <span className="text-gray-400">{deal.scout.full_name}</span>}
+                      <span className="text-gray-200">·</span>
+                      <span className="text-gray-400 flex items-center gap-1">
+                        <Clock size={10} />{relativeTime(deal.updated_at)}
+                      </span>
+                      {deal.next_action && (
+                        <>
+                          <span className="text-gray-200">·</span>
+                          <span className="text-gray-400 flex items-center gap-1">
+                            <AlertCircle size={10} />{deal.next_action}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">{deal.summary}</p>
 
-                  {/* Signals row */}
-                  <div className="flex items-center gap-4 mb-3 text-xs">
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400">Founder</span>
-                      <span className={`font-medium ${SIGNAL_COLORS[deal.signals.founder.level]}`}>
-                        {deal.signals.founder.label}
-                      </span>
-                    </div>
-                    <div className="w-px h-3 bg-gray-200" />
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400">Traction</span>
-                      <span className={`font-medium ${SIGNAL_COLORS[deal.signals.traction.level]}`}>
-                        {deal.signals.traction.label}
-                      </span>
-                    </div>
-                    <div className="w-px h-3 bg-gray-200" />
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400">Market</span>
-                      <span className={`font-medium ${SIGNAL_COLORS[deal.signals.market.level]}`}>
-                        {deal.signals.market.label}
-                      </span>
-                    </div>
-                    <div className="w-px h-3 bg-gray-200" />
-                    <div className="flex items-center gap-1">
-                      <span className="text-gray-400">Conviction</span>
-                      <span className={`font-medium ${SIGNAL_COLORS[deal.signals.conviction.level]}`}>
-                        {deal.signals.conviction.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Missing info */}
-                  {deal.missing.length > 0 && (
-                    <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-md px-2.5 py-1.5 w-fit mb-3">
-                      <AlertCircle size={11} />
-                      <span>Missing: {deal.missing.join(" · ")}</span>
-                    </div>
-                  )}
-
-                  {/* Footer row */}
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                    <span>Scout: <span className="text-gray-600">{deal.scout}</span></span>
-                    <span>·</span>
-                    <span>{deal.source}</span>
-                    <span>·</span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={10} />
-                      {deal.updated}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Right: actions */}
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <Link
-                    href={`/deals/${deal.id}`}
-                    className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    Open <ChevronRight size={12} />
-                  </Link>
-                  <div className="flex gap-1.5 mt-auto">
-                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
-                      <MessageSquare size={11} />
-                      Ask Scout
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => e.preventDefault()} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                      <MessageSquare size={13} />
                     </button>
-                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
-                      <Star size={11} />
-                      Priority
+                    <button onClick={(e) => e.preventDefault()} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                      <Star size={13} />
                     </button>
-                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors">
-                      <ArrowUpRight size={11} />
-                      Intro
+                    <button onClick={(e) => e.preventDefault()} className="p-1.5 text-white bg-gray-950 hover:bg-gray-800 rounded-lg">
+                      <ArrowUpRight size={13} />
                     </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Next action banner */}
-              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500 flex items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-indigo-400" />
-                Next: {deal.next_action}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
