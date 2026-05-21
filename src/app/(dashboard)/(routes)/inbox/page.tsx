@@ -127,7 +127,16 @@ export default function InboxPage() {
       {loading ? <Skeleton /> : (
         <div className="space-y-2">
           {filtered.length === 0 && (
-            <div className="text-center py-16 text-gray-400 text-sm">No deals match this filter.</div>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <svg width="56" height="56" viewBox="0 0 56 56" fill="none" className="mb-4 opacity-25">
+                <rect x="8" y="16" width="40" height="32" rx="4" stroke="#9ca3af" strokeWidth="2" />
+                <path d="M8 24h40" stroke="#9ca3af" strokeWidth="2" />
+                <rect x="16" y="32" width="10" height="2" rx="1" fill="#9ca3af" />
+                <rect x="16" y="37" width="16" height="2" rx="1" fill="#9ca3af" />
+              </svg>
+              <p className="text-sm font-medium text-gray-400">No deals match this filter</p>
+              <p className="text-xs text-gray-300 mt-1">Try switching to "All" to see everything.</p>
+            </div>
           )}
           {filtered.map((deal) => {
             const s = STATUS[deal.status] ?? STATUS.draft;
