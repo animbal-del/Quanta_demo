@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
+import { resolveScoutId } from "@/lib/supabase/resolve-scout";
 import { isDemoMode } from "@/lib/demo/scout-os";
 import type { ExtractionOutput } from "@/types";
 
@@ -56,9 +57,10 @@ export async function POST(
     body.traction && `Traction: ${body.traction}`,
   ].filter(Boolean).join("\n");
 
+  const scoutId = await resolveScoutId(body.scout_id);
   await db.from("deal_messages").insert({
     deal_id: params.id,
-    scout_id: body.scout_id,
+    scout_id: scoutId,
     sender_type: "scout",
     channel: "web",
     message_type: "text",
