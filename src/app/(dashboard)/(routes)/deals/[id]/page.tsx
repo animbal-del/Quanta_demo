@@ -571,8 +571,30 @@ export default function DealDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-6 text-center text-sm text-gray-400">
-                AI brief generates after submission.
+              <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-6 text-center space-y-3">
+                <p className="text-sm text-gray-400">No AI brief yet.</p>
+                <button
+                  onClick={async () => {
+                    setAnalysisLoading(true);
+                    try {
+                      // Generate signals + brief via the analyze endpoint (reuses same AI)
+                      await fetch(`/api/internal/deals/${deal.id}/analyze`, { method: "POST" });
+                      // Reload deal to get the brief
+                      const r = await fetch(`/api/internal/deals/${deal.id}`);
+                      const d = await r.json();
+                      setDeal(d);
+                    } finally {
+                      setAnalysisLoading(false);
+                    }
+                  }}
+                  disabled={analysisLoading}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-gray-950 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {analysisLoading
+                    ? <><Loader2 size={11} className="animate-spin" /> Generating…</>
+                    : <><Sparkles size={11} /> Generate AI Brief</>}
+                </button>
+                <p className="text-xs text-gray-300">This runs Groq analysis on the deal data</p>
               </div>
             )}
 

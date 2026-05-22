@@ -2,10 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { runStructuredCompletion } from "@/lib/openai/client";
 import { MARKET_ANALYSIS_SYSTEM_PROMPT, buildMarketAnalysisUserPrompt } from "@/prompts/analysis/market-analysis.prompt";
+import { generateSignalsForDeal, generateBriefForDeal } from "@/agents/signals";
 import { AI_MODELS } from "@/constants";
 
 export async function POST(_req: NextRequest, { params }: { params: { dealId: string } }) {
+  // Also regenerate signals + brief if they don't exist (fixes "AI brief not generating" issue)
   const db = getSupabaseAdmin();
+  const [existingSignals, existingBrief] = await Promise.all([
+    db.from("ai_outputs").select("id").eq("deal_id", params.dealId).eq("output_type", "signal_summary").maybeSingle(),
+    db.from("ai_outputs").select("id").eq("deal_id", params.dealId).eq("output_type", "internal_brief").maybeSingle(),
+  ]);
+
+  // Run in background — don't wait
+  if (!existingSignals.data || !existingBrief.data) {
+    Promise.all([
+      !existingSignals.data ? generateSignalsForDeal(params.dealId) : Promise.resolve(),
+      !existingBrief.data ? generateBriefForDeal(params.dealId) : Promise.resolve(),
+    ]).catch((e) => console.error("[analyze] Signals/brief generation failed:", e));
+  }
 
   // Assemble deal context for the prompt
   const [dealRes, foundersRes, messagesRes, signalsRes] = await Promise.all([

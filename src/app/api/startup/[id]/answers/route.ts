@@ -29,18 +29,53 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const { error } = await db.from("deal_answers").insert(rows);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const answered = answers.filter((a) => a.answer_type !== "skipped" && a.answer_text);
-  if (answered.length > 0) {
-    await db.from("deal_messages").insert(
-      answered.map((a) => ({
-        deal_id: params.id,
-        scout_id: scoutId,
-        sender_type: "scout",
-        channel: "web",
-        message_type: "text",
-        body: `Q: ${a.question}\nA: ${a.answer_text}`,
-      }))
-    ); // non-fatal if thread update fails
+  // Build conversation messages so both scout and Quanta see Q&A as a real dialogue.
+  // Each answered question = Quanta "asks" (system/quanta) + Scout "answers".
+  const messages: {
+    deal_id: string; scout_id: string | null; sender_type: string;
+    channel: string; message_type: string; body: string;
+  }[] = [];
+
+  for (const a of answers) {
+    // Skip internal special answers (rating, transcripts, etc.)
+    if (
+      a.question.startsWith("Investment Rating") ||
+      a.question.startsWith("Rating") ||
+      a.question.startsWith("Voice Transcript") ||
+      a.question === "Founder LinkedIn URLs"
+    ) continue;
+
+    if (a.answer_type === "skipped" || !a.answer_text) continue;
+
+    const isMissingDate = a.answer_text.startsWith("Missing — expected by");
+
+    // Quanta question (left side of chat)
+    messages.push({
+      deal_id: params.id, scout_id: null,
+      sender_type: "quanta", channel: "web", message_type: "text",
+      body: a.question,
+    });
+
+    if (isMissingDate) {
+      // System reminder for "Don't have this yet" items
+      const date = a.answer_text.replace("Missing — expected by ", "");
+      messages.push({
+        deal_id: params.id, scout_id: null,
+        sender_type: "system", channel: "web", message_type: "text",
+        body: `📅 Will provide by ${date}. Follow-up reminder scheduled.`,
+      });
+    } else {
+      // Scout answer (right side of chat)
+      messages.push({
+        deal_id: params.id, scout_id: scoutId,
+        sender_type: "scout", channel: "web", message_type: "text",
+        body: a.answer_text,
+      });
+    }
+  }
+
+  if (messages.length > 0) {
+    await db.from("deal_messages").insert(messages);
   }
 
   return NextResponse.json({ saved: rows.length });

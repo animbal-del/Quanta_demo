@@ -305,43 +305,62 @@ export default function StartupDetailPage() {
       {/* ── INTERACTION TAB ── */}
       {tab === "interaction" && (
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
-          {/* Pending questions from Quanta */}
+          {/* Active questions from Quanta needing a reply */}
           {deal.partner_questions.filter(q => q.status === "sent").length > 0 && (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 mb-2">
-              <p className="text-xs font-semibold text-indigo-700 mb-2 flex items-center gap-1.5">
-                <MessageCircle size={11} /> Questions from Quanta
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 mb-3">
+              <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <MessageCircle size={11} /> Quanta needs a response
               </p>
               {deal.partner_questions.filter(q => q.status === "sent").map((pq, i) => (
                 <p key={i} className="text-sm text-indigo-900 leading-relaxed">{pq.ai_rewritten_message ?? pq.question_text}</p>
               ))}
+              <p className="text-xs text-indigo-500 mt-2">Reply using the input below ↓</p>
             </div>
           )}
 
-          {/* Messages */}
+          {/* Full conversation thread */}
           {deal.messages.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-sm">
               <MessageCircle size={24} className="mx-auto mb-2 opacity-30" />
-              No messages yet. Quanta will reach out here with questions.
+              Your Q&amp;A from submission will appear here once you complete the submission flow.
             </div>
-          ) : deal.messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.sender_type === "scout" ? "justify-end" : "justify-start"}`}>
-              {msg.sender_type !== "scout" && (
-                <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center mr-1.5 mt-auto shrink-0 text-[9px] font-bold text-gray-500">
-                  {msg.sender_type === "ai" ? "AI" : "Q"}
+          ) : deal.messages.map((msg, i) => {
+            const isScout = msg.sender_type === "scout";
+            const isSystem = msg.sender_type === "system";
+            const isQuanta = msg.sender_type === "quanta";
+
+            // System messages (reminders, missing info) — centred
+            if (isSystem) return (
+              <div key={i} className="flex justify-center my-1">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 max-w-xs text-center">
+                  <p className="text-xs text-amber-800 leading-relaxed">{msg.body}</p>
                 </div>
-              )}
-              <div className={`max-w-xs rounded-2xl px-3.5 py-2.5 text-sm ${
-                msg.sender_type === "scout" ? "bg-gray-950 text-white rounded-br-sm"
-                  : msg.sender_type === "system" ? "bg-gray-50 text-gray-600 border border-gray-100 rounded-bl-sm"
-                  : "bg-gray-100 text-gray-900 rounded-bl-sm"
-              }`}>
-                <p className="leading-relaxed">{msg.body}</p>
-                <p className={`text-[10px] mt-1 ${msg.sender_type === "scout" ? "text-gray-400" : "text-gray-400"}`}>
-                  {fmt(msg.created_at)}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+
+            return (
+              <div key={i} className={`flex items-end gap-1.5 ${isScout ? "justify-end" : "justify-start"}`}>
+                {!isScout && (
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[9px] font-bold text-white ${isQuanta ? "bg-indigo-600" : "bg-gray-400"}`}>
+                    {isQuanta ? "Q" : "AI"}
+                  </div>
+                )}
+                <div className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 ${
+                  isScout  ? "bg-gray-950 text-white rounded-br-sm"
+                  : isQuanta ? "bg-indigo-600 text-white rounded-bl-sm"
+                  : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                }`}>
+                  {!isScout && (
+                    <p className="text-[9px] font-bold opacity-60 uppercase tracking-wide mb-1">
+                      {isQuanta ? "Quanta" : "AI"}
+                    </p>
+                  )}
+                  <p className="text-sm leading-relaxed">{msg.body}</p>
+                  <p className="text-[10px] mt-1 opacity-50">{fmt(msg.created_at)}</p>
+                </div>
+              </div>
+            );
+          })}
           <div ref={bottomRef} />
         </div>
       )}

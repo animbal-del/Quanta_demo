@@ -32,5 +32,34 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const { error } = await db.from("missing_info_tasks").insert(rows);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Add system messages to the deal thread so Quanta can see what's missing
+  const systemMessages = tasks
+    .filter((t) => t.expected_date)
+    .map((t) => ({
+      deal_id: params.id,
+      scout_id: scoutId,
+      sender_type: "system",
+      channel: "web",
+      message_type: "text",
+      body: `📅 Missing: "${t.info_needed}" — scout will provide by ${t.expected_date}. Reminder set for ${t.followup_date}.`,
+    }));
+
+  // Also add a message for items without a date
+  const noDates = tasks
+    .filter((t) => !t.expected_date)
+    .map((t) => ({
+      deal_id: params.id,
+      scout_id: scoutId,
+      sender_type: "system",
+      channel: "web",
+      message_type: "text",
+      body: `⚠️ Still missing: "${t.info_needed}" — no date set yet.`,
+    }));
+
+  const allMessages = [...systemMessages, ...noDates];
+  if (allMessages.length > 0) {
+    await db.from("deal_messages").insert(allMessages);
+  }
+
   return NextResponse.json({ saved: rows.length });
 }
