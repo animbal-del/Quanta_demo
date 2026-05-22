@@ -52,6 +52,29 @@ interface Analysis {
 
 interface RecommendedMsg { question: string; reason: string }
 
+function normalizeAnalysis(value: unknown): Analysis | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<Analysis>;
+  const marketSize = raw.market_size ?? { tam: "", sam: "", note: "" };
+
+  return {
+    market_overview: raw.market_overview ?? "",
+    market_size: {
+      tam: marketSize.tam ?? "",
+      sam: marketSize.sam ?? "",
+      note: marketSize.note ?? "",
+    },
+    tailwinds: Array.isArray(raw.tailwinds) ? raw.tailwinds : [],
+    headwinds: Array.isArray(raw.headwinds) ? raw.headwinds : [],
+    comparable_companies: Array.isArray(raw.comparable_companies) ? raw.comparable_companies : [],
+    investment_thesis: raw.investment_thesis ?? "",
+    key_diligence_questions: Array.isArray(raw.key_diligence_questions) ? raw.key_diligence_questions : [],
+    verdict: raw.verdict ?? "neutral",
+    verdict_reason: raw.verdict_reason ?? "No verdict reason returned.",
+    visualizations: Array.isArray(raw.visualizations) ? raw.visualizations : [],
+  };
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
   draft:           { label: "Draft",           dot: "bg-gray-300",   badge: "bg-gray-100 text-gray-500" },
@@ -342,6 +365,7 @@ export default function DealDetailPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisCached, setAnalysisCached] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
 
   // Brief — auto-generates on load if missing
   const [briefLoading, setBriefLoading] = useState(false);
@@ -391,7 +415,15 @@ export default function DealDetailPage() {
     if (tab !== "analyze" || analysis) return;
     fetch(`/api/internal/deals/${dealId}/analyze`)
       .then((r) => r.json())
-      .then((d) => { if (d.cached) { setAnalysis(d.analysis as Analysis); setAnalysisCached(true); } });
+      .then((d) => {
+        if (!d.cached) return;
+        const cached = normalizeAnalysis(d.analysis);
+        if (cached) {
+          setAnalysis(cached);
+          setAnalysisCached(true);
+        }
+      })
+      .catch(() => setAnalysisError("Could not load cached analysis."));
   }, [tab, dealId, analysis]);
 
   useEffect(() => {
@@ -404,11 +436,26 @@ export default function DealDetailPage() {
   }, [tab, dealId, recommended.length]);
 
   async function runAnalysis() {
-    setAnalysisLoading(true); setAnalysis(null);
-    const res = await fetch(`/api/internal/deals/${dealId}/analyze`, { method: "POST" });
-    setAnalysis(await res.json() as Analysis);
-    setAnalysisCached(false);
-    setAnalysisLoading(false);
+    setAnalysisLoading(true); setAnalysis(null); setAnalysisError("");
+    try {
+      const res = await fetch(`/api/internal/deals/${dealId}/analyze`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setAnalysisError(json.error ?? "Analysis failed.");
+        return;
+      }
+      const nextAnalysis = normalizeAnalysis(json);
+      if (!nextAnalysis) {
+        setAnalysisError("Analysis returned an unexpected response.");
+        return;
+      }
+      setAnalysis(nextAnalysis);
+      setAnalysisCached(false);
+    } catch {
+      setAnalysisError("Analysis request failed.");
+    } finally {
+      setAnalysisLoading(false);
+    }
   }
 
   async function addNote() {
@@ -940,6 +987,13 @@ export default function DealDetailPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {analysisError && !analysisLoading && (
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+              <p className="text-sm font-medium text-red-700">Analysis unavailable</p>
+              <p className="text-xs text-red-600 mt-1">{analysisError}</p>
             </div>
           )}
 

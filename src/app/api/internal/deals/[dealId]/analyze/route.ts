@@ -53,7 +53,7 @@ Conversation excerpts: ${(messagesRes.data ?? []).map((m) => m.body).join(" | ")
   // Cache the analysis in ai_outputs
   await db.from("ai_outputs").insert({
     deal_id: params.dealId,
-    output_type: "enrichment",
+    output_type: "market_analysis",
     model_name: AI_MODELS.brief,
     input_snapshot: { deal_context: dealContext },
     output_json: analysis as Record<string, unknown>,
@@ -70,7 +70,7 @@ export async function GET(_req: NextRequest, { params }: { params: { dealId: str
     .from("ai_outputs")
     .select("output_json, created_at")
     .eq("deal_id", params.dealId)
-    .eq("output_type", "enrichment")
+    .eq("output_type", "market_analysis")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
