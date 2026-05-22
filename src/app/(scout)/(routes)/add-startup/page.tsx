@@ -467,19 +467,33 @@ export default function AddStartupPage() {
   }
 
   async function processRatingRecording(blob: Blob) {
+    if (!dealId) { setError("No deal found. Go back and try again."); return; }
     setRatingProcessing(true);
     try {
+      // Step 1: Transcribe
       const fd = new FormData();
       fd.append("audio", blob, "rating.webm");
-      fd.append("context", "rating"); // uses the investment rationale polish prompt
-      const res = await fetch("/api/transcribe", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!data.transcript?.trim()) { setError("No speech detected. Try again."); return; }
-      setRatingRaw(data.transcript);
-      setRatingPolished(data.polished ?? data.transcript);
-      setRatingReason(data.polished ?? data.transcript);
-      setShowRatingVersions(data.transcript !== data.polished);
-    } catch (e) { setError(`Transcription failed: ${e instanceof Error ? e.message : e}`);
+      fd.append("context", "pitch");
+      const tRes = await fetch("/api/transcribe", { method: "POST", body: fd });
+      const tData = await tRes.json();
+      const transcript = tData.transcript ?? "";
+      if (!transcript.trim()) { setError("No speech detected. Try again."); return; }
+      setRatingRaw(transcript);
+
+      // Step 2: Write rationale using real deal context (Q&A answers, traction numbers, stage)
+      // This avoids placeholders — the AI pulls actual facts from the deal's data
+      const rRes = await fetch(`/api/startup/${dealId}/rationale`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript, rating: investmentRating }),
+      });
+      const rData = await rRes.json();
+      const rationale = rData.rationale ?? transcript;
+
+      setRatingPolished(rationale);
+      setRatingReason(rationale);
+      setShowRatingVersions(transcript !== rationale);
+    } catch (e) { setError(`Processing failed: ${e instanceof Error ? e.message : e}`);
     } finally { setRatingProcessing(false); }
   }
 
