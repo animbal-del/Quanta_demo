@@ -58,10 +58,10 @@ export const FIXED_QUESTIONS = [
     placeholder: "Names, previous experience, education, domain expertise…",
   },
   {
-    id: "founder_strength",
-    category: "Founders",
-    question: "What's the most impressive thing about the founders?",
-    placeholder: "The specific thing that made you take notice — a credential, conviction, demo, insight…",
+    id: "company_strength",
+    category: "Company",
+    question: "What's the most impressive thing about the company?",
+    placeholder: "What stood out most — product insight, market timing, founder conviction, a demo, early results…",
   },
   {
     id: "traction",
