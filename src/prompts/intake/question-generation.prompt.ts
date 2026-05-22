@@ -1,30 +1,92 @@
 /**
- * Question Generation Prompt
+ * Question Generation Prompt — v2
  *
- * Generates 3-5 targeted follow-up questions for the scout based on what
- * the AI could and couldn't extract from the initial submission.
- * Questions are ordered by priority — most investment-critical first.
+ * Generates AI follow-up questions that SUPPLEMENT the fixed structured
+ * questions (company, founders, traction, stage, fundraising, rating).
+ * Only surfaces gaps not already covered by the fixed questions.
+ * Max 3 additional questions, most critical first.
  */
 
-export const QUESTION_GENERATION_SYSTEM_PROMPT = `You generate follow-up questions for venture scouts.
+export const QUESTION_GENERATION_SYSTEM_PROMPT = `You generate targeted follow-up questions for a venture scout about a startup they sourced.
 
-Based on extracted deal data, generate 3-5 specific questions that would help a venture investor better understand this startup.
+The scout will already be asked these standard questions, so do NOT repeat them:
+- What does the company do / what problem do they solve?
+- Who are the founders and their backgrounds?
+- What's most impressive about the founders?
+- What traction do they have?
+- What stage are they at?
+- How much have they raised / want to raise?
+- Personal investment rating 1-4 with reasoning
+
+Your job: identify up to 3 ADDITIONAL questions that are specific to this startup's unique gaps.
+Focus on things that are genuinely missing and would materially change an investment decision.
+If no meaningful gaps exist, return fewer questions or an empty list.
 
 Rules:
-- Prioritise gaps in the data (unknown founder background, vague traction, unclear market)
-- Keep questions conversational — like a colleague asking, not an interrogation
-- Each question should be answerable in 1-3 sentences
-- Do not ask for things already clearly stated in the extraction
-- Order by priority: founder insight first, then traction, then market/product
+- Be specific — reference the actual startup, not generic questions
+- One question per gap — not multi-part questions
+- Skip if the extraction already answers it clearly
+- Max 3 questions
 
-Return strict JSON only. No explanation, no markdown.`;
+Return strict JSON only.`;
 
 export function buildQuestionGenerationUserPrompt(extractionJson: string): string {
-  return `Extracted deal data:
+  return `Extraction data for this startup:
 ${extractionJson}
 
-Return JSON matching this schema exactly:
+Return JSON:
 {
-  "questions": ["string", "string", "string"]
-}`;
+  "questions": ["specific question 1", "specific question 2"]
 }
+
+Return an empty array if no meaningful additional questions are needed.`;
+}
+
+// ─── Fixed structured questions (always asked) ────────────────────────────────
+// These form the backbone of every submission regardless of what the AI extracts.
+export const FIXED_QUESTIONS = [
+  {
+    id: "company",
+    category: "Company",
+    question: "What does the company do and what problem are they solving?",
+    placeholder: "Describe their product, the problem, and the target customer…",
+  },
+  {
+    id: "founders",
+    category: "Founders",
+    question: "Who are the founders? Share their names and backgrounds.",
+    placeholder: "Names, previous experience, education, domain expertise…",
+  },
+  {
+    id: "founder_strength",
+    category: "Founders",
+    question: "What's the most impressive thing about the founders?",
+    placeholder: "The specific thing that made you take notice — a credential, conviction, demo, insight…",
+  },
+  {
+    id: "traction",
+    category: "Traction",
+    question: "What traction do they have? (customers, revenue, users, pilots, LOIs)",
+    placeholder: "Numbers, paying customers, growth rate, notable customers or partners…",
+  },
+  {
+    id: "stage",
+    category: "Stage",
+    question: "What stage are they at?",
+    placeholder: "Pre-idea, pre-product, MVP, early revenue, growth — and what they're doing now…",
+  },
+  {
+    id: "fundraising",
+    category: "Fundraising",
+    question: "Have they raised money before? How much are they looking to raise now?",
+    placeholder: "Previous rounds, current raise amount and terms if known, timeline…",
+  },
+] as const;
+
+// ─── Rating scale ─────────────────────────────────────────────────────────────
+export const RATING_OPTIONS = [
+  { value: 1, label: "Not a fit",       color: "text-gray-500",   bg: "bg-gray-100",   border: "border-gray-300"   },
+  { value: 2, label: "Worth exploring", color: "text-blue-700",   bg: "bg-blue-50",    border: "border-blue-300"   },
+  { value: 3, label: "Strong lead",     color: "text-amber-700",  bg: "bg-amber-50",   border: "border-amber-400"  },
+  { value: 4, label: "Must invest",     color: "text-emerald-700",bg: "bg-emerald-50", border: "border-emerald-400"},
+] as const;

@@ -608,20 +608,74 @@ export default function DealDetailPage() {
               </div>
             )}
 
-            {/* Scout Q&A Answers */}
-            {deal.deal_answers.filter((a) => a.answer_type !== "skipped" && a.answer_text).length > 0 && (
-              <div className="bg-white border border-gray-100 rounded-xl p-5">
-                <h2 className="text-sm font-semibold text-gray-950 mb-3">Scout Q&amp;A</h2>
-                <div className="space-y-3">
-                  {deal.deal_answers.filter((a) => a.answer_type !== "skipped" && a.answer_text).map((a) => (
-                    <div key={a.id} className="border-b border-gray-50 pb-3 last:border-0 last:pb-0">
-                      <p className="text-xs font-medium text-gray-500 mb-1">{a.question}</p>
-                      <p className="text-sm text-gray-800">{a.answer_text}</p>
+            {/* Scout Q&A — structured display with rating pulled out */}
+            {deal.deal_answers.filter((a) => a.answer_type !== "skipped" && a.answer_text).length > 0 && (() => {
+              const answered = deal.deal_answers.filter((a) => a.answer_type !== "skipped" && a.answer_text);
+              const ratingAnswer = answered.find((a) => a.question === "Investment Rating (1-4)");
+              const ratingReasonAnswer = answered.find((a) => a.question === "Rating Reason");
+              const anythingElseAnswer = answered.find((a) => a.question === "Anything else valuable");
+              const ratingValue = ratingAnswer ? parseInt(ratingAnswer.answer_text ?? "0") : 0;
+
+              const RATING_STYLES: Record<number, { label: string; badge: string }> = {
+                1: { label: "Not a fit",       badge: "bg-gray-100 text-gray-600" },
+                2: { label: "Worth exploring", badge: "bg-blue-50 text-blue-700" },
+                3: { label: "Strong lead",     badge: "bg-amber-50 text-amber-700" },
+                4: { label: "Must invest",     badge: "bg-emerald-50 text-emerald-700" },
+              };
+
+              const structured = answered.filter((a) =>
+                !["Investment Rating (1-4)", "Rating Reason", "Anything else valuable"].includes(a.question)
+              );
+
+              return (
+                <div className="space-y-4">
+                  {/* Investment rating card — shown prominently */}
+                  {ratingValue > 0 && (
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`text-3xl font-bold w-12 h-12 rounded-xl flex items-center justify-center ${RATING_STYLES[ratingValue]?.badge}`}>
+                          {ratingValue}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Scout Rating</p>
+                          <p className={`text-base font-semibold ${RATING_STYLES[ratingValue]?.badge.replace("bg-", "text-").replace("-50", "-700").replace("bg-gray-100", "text-gray-700")}`}>
+                            {RATING_STYLES[ratingValue]?.label}
+                          </p>
+                        </div>
+                      </div>
+                      {ratingReasonAnswer?.answer_text && (
+                        <p className="text-sm text-gray-700 leading-relaxed border-t border-gray-50 pt-3">
+                          {ratingReasonAnswer.answer_text}
+                        </p>
+                      )}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Structured Q&A answers */}
+                  {structured.length > 0 && (
+                    <div className="bg-white border border-gray-100 rounded-xl p-5">
+                      <h2 className="text-sm font-semibold text-gray-950 mb-3">Scout Q&amp;A</h2>
+                      <div className="space-y-3">
+                        {structured.map((a) => (
+                          <div key={a.id} className="border-b border-gray-50 pb-3 last:border-0 last:pb-0">
+                            <p className="text-xs font-medium text-gray-400 mb-1">{a.question}</p>
+                            <p className="text-sm text-gray-800 leading-relaxed">{a.answer_text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Anything else */}
+                  {anythingElseAnswer?.answer_text && (
+                    <div className="bg-white border border-gray-100 rounded-xl p-4">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Scout&apos;s additional notes</p>
+                      <p className="text-sm text-gray-700 leading-relaxed">{anythingElseAnswer.answer_text}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Voice pitch audio player */}
             {audioFiles.length > 0 && (

@@ -5,12 +5,14 @@ import Link from "next/link";
 import {
   ArrowLeft, ArrowRight, Check, FileUp, Mic, PencilLine,
   Send, Square, Loader2, AlertCircle, StopCircle, Edit3,
-  RefreshCw, CheckCircle2, BookmarkCheck,
+  RefreshCw, CheckCircle2, BookmarkCheck, Paperclip, X,
 } from "lucide-react";
+import { FIXED_QUESTIONS, RATING_OPTIONS } from "@/prompts/intake/question-generation.prompt";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Mode = "voice" | "manual" | "document";
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
+type FixedQuestion = typeof FIXED_QUESTIONS[number];
 
 interface Extraction {
   startup_name?: string | null;
@@ -186,11 +188,12 @@ function VoiceRecorder({ context, placeholder, onResult }: VoiceRecorderProps) {
 interface QuestionCardProps {
   index: number;
   question: string;
+  category?: string;
   value: string;
   onChange: (text: string, type?: "text" | "skipped") => void;
 }
 
-function QuestionCard({ index, question, value, onChange }: QuestionCardProps) {
+function QuestionCard({ index, question, category, value, onChange }: QuestionCardProps) {
   const [mode, setMode] = useState<"idle" | "typing" | "review">(value ? "review" : "idle");
   const [transcript, setTranscript] = useState("");
   const [polished, setPolished] = useState("");
@@ -219,7 +222,12 @@ function QuestionCard({ index, question, value, onChange }: QuestionCardProps) {
 
   return (
     <div className="border border-gray-200 rounded-xl p-4">
-      <p className="text-sm text-gray-800 mb-3 font-medium">{index + 1}. {question}</p>
+      {category && (
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{category}</p>
+      )}
+      <p className="text-sm text-gray-800 mb-3 font-medium">
+        {index >= 0 ? `${index + 1}. ` : ""}{question}
+      </p>
 
       {mode === "idle" && (
         <div className="flex items-center gap-2 flex-wrap">
@@ -369,9 +377,21 @@ export default function AddStartupPage() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
   const [extraction, setExtraction] = useState<Extraction | null>(null);
-  const [questions, setQuestions] = useState<string[]>([]);
-  const [answers, setAnswers] = useState<{ question: string; text: string; type: "text" | "skipped" }[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+
+  // Questions — fixed (structured) + AI-generated (gaps)
+  const [fixedAnswers, setFixedAnswers] = useState<Record<string, string>>({});
+  const [aiQuestions, setAiQuestions] = useState<string[]>([]);
+  const [aiAnswers, setAiAnswers] = useState<{ question: string; text: string }[]>([]);
+
+  // Step 3 — additional file attachments
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; storage_url: string; file_type: string }[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  // Step 5 — investment assessment
+  const [investmentRating, setInvestmentRating] = useState<number>(0);
+  const [ratingReason, setRatingReason] = useState("");
+  const [anythingElse, setAnythingElse] = useState("");
 
   // Voice pitch recording
   const [recording, setRecording] = useState(false);
@@ -498,10 +518,35 @@ export default function AddStartupPage() {
 
   async function fetchQuestions(id: string, ext: Extraction) {
     try {
-      const { questions: qs } = await post(`/api/startup/${id}/questions`, { extraction: ext });
-      setQuestions(qs ?? []);
-      setAnswers((qs ?? []).map((q: string) => ({ question: q, text: "", type: "text" as const })));
+      const res = await post(`/api/startup/${id}/questions`, { extraction: ext });
+      // AI questions are gap-fillers (fixed questions are always shown from the prompt)
+      const aiQs: string[] = res.ai_questions ?? [];
+      setAiQuestions(aiQs);
+      setAiAnswers(aiQs.map((q: string) => ({ question: q, text: "" })));
+      // Pre-fill fixed answers from extraction where possible
+      setFixedAnswers({
+        company: ext.one_line_description ?? "",
+        traction: ext.traction_mentions?.join(", ") ?? "",
+      });
     } catch { /* questions optional */ }
+  }
+
+  async function uploadAttachment(file: File) {
+    if (!dealId) return;
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+      formData.append("deal_id", dealId);
+      const res = await fetch("/api/upload/file", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      setAttachedFiles((prev) => [...prev, { name: file.name, storage_url: data.storage_url, file_type: file.type }]);
+    } catch (e) {
+      setError(`File upload failed: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setUploadingFile(false);
+    }
   }
 
   // All process functions return true on success, false on failure.
@@ -677,19 +722,36 @@ export default function AddStartupPage() {
       return;
     }
 
-    // Step 4 → 5: save answers
+    // Step 4 → 5: save all answers (fixed + AI-generated)
     if (step === 4) {
       setNavigating(true);
       try {
-        if (dealId && answers.length > 0) {
-          await post(`/api/startup/${dealId}/answers`, {
-            answers: answers.map((a) => ({
+        if (dealId) {
+          const allAnswers = [
+            // Fixed structured answers
+            ...FIXED_QUESTIONS.map((q) => ({
+              question: q.question,
+              answer_text: fixedAnswers[q.id] || null,
+              answer_type: fixedAnswers[q.id] ? "text" : "skipped",
+            })),
+            // AI-generated additional answers
+            ...aiAnswers.map((a) => ({
               question: a.question,
               answer_text: a.text || null,
               answer_type: a.text ? "text" : "skipped",
             })),
-            scout_id: getScoutId(),
-          });
+          ];
+          await post(`/api/startup/${dealId}/answers`, { answers: allAnswers, scout_id: getScoutId() });
+
+          // Also save attached files as deal_files records
+          for (const f of attachedFiles) {
+            await post(`/api/startup/${dealId}/file`, {
+              storage_url: f.storage_url,
+              file_name: f.name,
+              file_type: f.file_type,
+              scout_id: getScoutId(),
+            });
+          }
         }
         setStep(5);
       } catch (e) {
@@ -710,14 +772,20 @@ export default function AddStartupPage() {
       setError("Nothing to submit — please go back and fill in your startup details first.");
       return;
     }
+    if (investmentRating === 0) {
+      setError("Please rate this investment (1-4) before submitting.");
+      return;
+    }
     setNavigating(true);
     try {
-      // Save note first if there is one
-      if (noteText.trim()) {
-        await post(`/api/startup/${dealId}/notes`, {
-          note_text: noteText, note_type: "text", scout_id: getScoutId(),
-        });
-      }
+      // Save investment rating + reason as special answers
+      const assessmentAnswers = [
+        { question: "Investment Rating (1-4)", answer_text: String(investmentRating), answer_type: "text" },
+        { question: "Rating Reason", answer_text: ratingReason || null, answer_type: ratingReason ? "text" : "skipped" },
+        { question: "Anything else valuable", answer_text: anythingElse || null, answer_type: anythingElse ? "text" : "skipped" },
+      ];
+      await post(`/api/startup/${dealId}/answers`, { answers: assessmentAnswers, scout_id: getScoutId() });
+
       await post(`/api/startup/${dealId}/submit`, {});
       setStep(6);
     } catch (e) {
@@ -728,8 +796,12 @@ export default function AddStartupPage() {
   }
 
   const stepTitles: Record<Step, string> = {
-    1: "Add Startup", 2: mode === "voice" ? "Voice Pitch" : mode === "manual" ? "Manual Entry" : "Upload Document",
-    3: "Review & Edit", 4: "Answer Questions", 5: "Personal Notes", 6: "Submitted",
+    1: "Add Startup",
+    2: mode === "voice" ? "Voice Pitch" : mode === "manual" ? "Manual Entry" : "Upload Document",
+    3: "Review & Edit",
+    4: "About the Startup",
+    5: "Your Assessment",
+    6: "Submitted",
   };
 
   return (
@@ -869,105 +941,169 @@ export default function AddStartupPage() {
         {/* ── Processing ── */}
         {processing && <ProcessingSteps active={processing} />}
 
-        {/* ── Step 3: Review & Edit ── */}
+        {/* ── Step 3: Review & Edit + Attach Materials ── */}
         {step === 3 && !processing && (
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <p className="text-xs text-gray-400 flex-1">AI extracted the following. Tap any field to correct it.</p>
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                {extraction?.confidence ? `${Math.round(extraction.confidence * 100)}% confidence` : ""}
-              </span>
-            </div>
-            <div className="rounded-xl border border-gray-200 p-4 space-y-0">
-              <EditableField label="Startup" value={reviewFields.startup_name}
-                onSave={(v) => saveReviewEdit("startup_name", v)} />
-              <EditableField label="Founder" value={reviewFields.founder_name}
-                onSave={(v) => saveReviewEdit("founder_name", v)} />
-              <EditableField label="What it does" value={reviewFields.one_line_description}
-                onSave={(v) => saveReviewEdit("one_line_description", v)} multiline />
-              <EditableField label="Why interesting" value={reviewFields.why_interesting}
-                onSave={(v) => saveReviewEdit("why_interesting", v)} multiline />
-              <EditableField label="Traction" value={reviewFields.traction}
-                onSave={(v) => saveReviewEdit("traction", v)} multiline />
-            </div>
-            {(extraction?.missing_fields?.length ?? 0) > 0 && (
-              <div className="mt-4">
-                <p className="text-xs font-medium text-amber-700 mb-2">Still missing</p>
-                <div className="flex flex-wrap gap-1.5">
+          <section className="space-y-5">
+            {/* AI-extracted fields */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <p className="text-xs text-gray-400 flex-1">AI extracted the following. Tap any field to correct it.</p>
+                {extraction?.confidence && (
+                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                    {Math.round(extraction.confidence * 100)}% confidence
+                  </span>
+                )}
+              </div>
+              <div className="rounded-xl border border-gray-200 p-4 space-y-0">
+                <EditableField label="Startup" value={reviewFields.startup_name}
+                  onSave={(v) => saveReviewEdit("startup_name", v)} />
+                <EditableField label="Founder" value={reviewFields.founder_name}
+                  onSave={(v) => saveReviewEdit("founder_name", v)} />
+                <EditableField label="What it does" value={reviewFields.one_line_description}
+                  onSave={(v) => saveReviewEdit("one_line_description", v)} multiline />
+                <EditableField label="Why interesting" value={reviewFields.why_interesting}
+                  onSave={(v) => saveReviewEdit("why_interesting", v)} multiline />
+                <EditableField label="Traction" value={reviewFields.traction}
+                  onSave={(v) => saveReviewEdit("traction", v)} multiline />
+              </div>
+              {(extraction?.missing_fields?.length ?? 0) > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
                   {extraction?.missing_fields?.map((f) => (
                     <span key={f} className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-lg">{f}</span>
                   ))}
                 </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* ── Step 4: Question round ── */}
-        {step === 4 && !processing && (
-          <section>
-            <p className="text-sm text-gray-500 mb-4">Answer by voice or text. AI will clean up your voice answers.</p>
-            {questions.length > 0 ? (
-              <div className="space-y-4">
-                {questions.map((q, i) => (
-                  <QuestionCard key={i} index={i} question={q}
-                    value={answers[i]?.text ?? ""}
-                    onChange={(text, type) => setAnswers((prev) =>
-                      prev.map((a, j) => j === i ? { ...a, text, type: type ?? "text" } : a)
-                    )}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-400 text-sm">
-                <CheckCircle2 size={20} className="mx-auto mb-2 opacity-40" />
-                No questions — submission looks complete.
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* ── Step 5: Personal notes ── */}
-        {step === 5 && !processing && (
-          <section>
-            <h2 className="text-lg font-semibold text-gray-950 mb-1">Personal notes</h2>
-            <p className="text-sm text-gray-400 mb-5">Your private gut-feel — voice record or type. AI will clean it up.</p>
-
-            {/* Voice or type toggle */}
-            <div className="flex items-center gap-2 mb-4">
-              <VoiceRecorder context="note" placeholder="Record your thoughts (up to 60s)"
-                onResult={handleNoteVoice} />
-              <span className="text-xs text-gray-300">or type below</span>
+              )}
             </div>
 
-            {/* Show AI vs raw if both exist */}
-            {showNoteVersions && notePolished && noteRaw && (
-              <div className="space-y-2 mb-3">
-                <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-medium text-emerald-600 flex items-center gap-1">
-                      <CheckCircle2 size={10} /> AI polished version
-                    </span>
-                    <button onClick={() => { setNoteText(notePolished); setShowNoteVersions(false); }}
-                      className="text-xs text-indigo-600 hover:underline">Use this</button>
+            {/* Attach materials */}
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-sm font-semibold text-gray-950 mb-1">Attach materials</p>
+              <p className="text-xs text-gray-400 mb-3">Deck, pitch, one-pager, demo — any files relevant to this startup.</p>
+
+              <label className={`flex items-center gap-2 border border-dashed border-gray-200 rounded-lg px-4 py-3 text-sm cursor-pointer hover:border-gray-300 transition-colors ${uploadingFile ? "opacity-50 pointer-events-none" : ""}`}>
+                {uploadingFile
+                  ? <><Loader2 size={14} className="animate-spin text-gray-400" /> Uploading…</>
+                  : <><Paperclip size={14} className="text-gray-400" /> <span className="text-gray-500">Choose file to attach</span></>
+                }
+                <input type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); e.target.value = ""; }} />
+              </label>
+
+              {attachedFiles.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {attachedFiles.map((f, i) => (
+                    <li key={i} className="flex items-center gap-2 text-xs text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
+                      <Paperclip size={11} className="text-gray-400 shrink-0" />
+                      <span className="flex-1 truncate">{f.name}</span>
+                      <button onClick={() => setAttachedFiles((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Step 4: Structured questions about the startup ── */}
+        {step === 4 && !processing && (
+          <section className="space-y-5">
+            <p className="text-sm text-gray-500">Answer by voice or text — cover as much as you can.</p>
+
+            {/* Fixed structured questions */}
+            {FIXED_QUESTIONS.map((q) => (
+              <QuestionCard
+                key={q.id}
+                index={-1}
+                question={q.question}
+                category={q.category}
+                value={fixedAnswers[q.id] ?? ""}
+                onChange={(text) => setFixedAnswers((prev) => ({ ...prev, [q.id]: text }))}
+              />
+            ))}
+
+            {/* AI-generated additional questions */}
+            {aiQuestions.length > 0 && (
+              <div className="pt-2">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                  Additional questions for this startup
+                </p>
+                {aiQuestions.map((q, i) => (
+                  <div key={i} className="mb-4">
+                    <QuestionCard
+                      index={i}
+                      question={q}
+                      value={aiAnswers[i]?.text ?? ""}
+                      onChange={(text) => setAiAnswers((prev) =>
+                        prev.map((a, j) => j === i ? { ...a, text } : a)
+                      )}
+                    />
                   </div>
-                  <p className="text-xs text-gray-700">{notePolished}</p>
-                </div>
-                <div className="bg-gray-50/50 rounded-xl p-3 border border-gray-100 opacity-60">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-gray-400">Raw transcript</span>
-                    <button onClick={() => { setNoteText(noteRaw); setShowNoteVersions(false); }}
-                      className="text-xs text-gray-400 hover:underline">Use this</button>
-                  </div>
-                  <p className="text-xs text-gray-500">{noteRaw}</p>
-                </div>
+                ))}
               </div>
             )}
+          </section>
+        )}
 
-            <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Something felt off about the market size claim, but the founder energy was exceptional…"
-              className="w-full h-36 resize-none rounded-xl border border-gray-200 p-4 text-sm outline-none focus:border-gray-400" />
-            <p className="text-xs text-gray-400 mt-1.5">Not shared with Quanta — private to you.</p>
+        {/* ── Step 5: Investment Assessment ── */}
+        {step === 5 && !processing && (
+          <section className="space-y-5">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-950 mb-1">Your assessment</h2>
+              <p className="text-sm text-gray-400">Rate this opportunity and share your personal take.</p>
+            </div>
+
+            {/* Investment rating 1-4 */}
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-sm font-semibold text-gray-950 mb-3">
+                Investment rating <span className="text-red-500">*</span>
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {RATING_OPTIONS.map((opt) => (
+                  <button key={opt.value} onClick={() => setInvestmentRating(opt.value)}
+                    className={`flex items-center gap-3 border rounded-xl p-3 text-left transition-all ${
+                      investmentRating === opt.value
+                        ? `${opt.bg} ${opt.border} border-2`
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}>
+                    <span className={`text-xl font-bold w-7 shrink-0 ${investmentRating === opt.value ? opt.color : "text-gray-300"}`}>
+                      {opt.value}
+                    </span>
+                    <div>
+                      <p className={`text-xs font-semibold ${investmentRating === opt.value ? opt.color : "text-gray-600"}`}>
+                        {opt.label}
+                      </p>
+                    </div>
+                    {investmentRating === opt.value && (
+                      <Check size={14} className={`ml-auto shrink-0 ${opt.color}`} />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mt-3">
+                <p className="text-xs text-gray-500 mb-1.5">Why this rating?</p>
+                <textarea value={ratingReason} onChange={(e) => setRatingReason(e.target.value)}
+                  placeholder="What makes this compelling or risky? What's your gut on the founders?"
+                  className="w-full h-24 resize-none rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-gray-400" />
+              </div>
+            </div>
+
+            {/* Anything else */}
+            <div className="border border-gray-200 rounded-xl p-4">
+              <p className="text-sm font-semibold text-gray-950 mb-1">Anything else?</p>
+              <p className="text-xs text-gray-400 mb-3">
+                Context, relationships, urgency, competitive dynamics — anything you think Quanta should know.
+              </p>
+              <div className="flex items-center gap-2 mb-2">
+                <VoiceRecorder context="note" placeholder="Record your thoughts"
+                  onResult={(raw, polished) => setAnythingElse(polished || raw)} />
+                <span className="text-xs text-gray-300">or type below</span>
+              </div>
+              <textarea value={anythingElse} onChange={(e) => setAnythingElse(e.target.value)}
+                placeholder="I know the founder personally from…"
+                className="w-full h-24 resize-none rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-gray-400" />
+            </div>
           </section>
         )}
 
