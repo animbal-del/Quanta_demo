@@ -126,13 +126,15 @@ To speed up testing without needing real emails during development:
    - Name: `deal-files`
    - Public: OFF
    - File size limit: 25MB
-   - Allowed MIME types: `application/pdf, image/*, audio/*, application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation`
+   - Allowed MIME types: **leave blank** (blank = allow all types — avoids rejecting .doc, .docx, etc.)
 
    **Bucket 2:**
    - Name: `scout-audio`
    - Public: OFF
    - File size limit: 10MB
-   - Allowed MIME types: `audio/*`
+   - Allowed MIME types: **leave blank**
+
+   > If you already created these buckets with MIME type restrictions, edit each bucket and clear the "Allowed MIME types" field.
 
 4. For each bucket, click **Policies** → **New policy** → **For full customization**:
 

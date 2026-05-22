@@ -58,22 +58,26 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(arrayBuffer);
 
   const db = getSupabaseAdmin();
-  const { data, error } = await db.storage
-    .from(bucket)
-    .upload(path, buffer, {
-      contentType: mimeType,
+
+  // Try with the actual MIME type first
+  let uploadResult = await db.storage.from(bucket).upload(path, buffer, { contentType: mimeType, upsert: false });
+
+  // If Supabase rejects the MIME type, retry as octet-stream (bucket has no type restriction on binary)
+  if (uploadResult.error?.message?.toLowerCase().includes("mime type") ||
+      uploadResult.error?.message?.toLowerCase().includes("not allowed")) {
+    uploadResult = await db.storage.from(bucket).upload(path, buffer, {
+      contentType: "application/octet-stream",
       upsert: false,
     });
+  }
+
+  const { data, error } = uploadResult;
 
   if (error || !data) {
-    const msg = error?.message ?? "Upload failed";
-    if (msg.includes("mime type") || msg.includes("not allowed")) {
-      return NextResponse.json(
-        { error: `File type "${mimeType}" is not allowed in this bucket. Use PDF, Word, PowerPoint, or image files.` },
-        { status: 415 }
-      );
-    }
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message ?? "Upload failed. Check your Supabase Storage bucket settings." },
+      { status: 500 }
+    );
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
