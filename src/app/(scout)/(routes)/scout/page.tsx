@@ -33,10 +33,17 @@ export default function ScoutHomePage() {
   const [displayName, setDisplayName] = useState("there");
 
   useEffect(() => {
-    fetch("/api/scout/deals").then((r) => r.json()).then(setDeals).finally(() => setLoading(false));
-    fetch("/api/auth/session").then((r) => r.json()).then((s) => {
-      if (s.display_name) setDisplayName(s.display_name.split(" ")[0]);
-    });
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((s) => {
+        if (s.display_name) setDisplayName(s.display_name.split(" ")[0]);
+        const sid = s.scout_id;
+        const url = sid ? `/api/scout/deals?scout_id=${sid}` : "/api/scout/deals";
+        return fetch(url);
+      })
+      .then((r) => r.json())
+      .then(setDeals)
+      .finally(() => setLoading(false));
   }, []);
 
   const needsAction = deals.filter((d) => d.has_pending_question || d.status === "needs_info");

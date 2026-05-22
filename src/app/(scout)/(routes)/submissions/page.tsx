@@ -33,7 +33,12 @@ export default function SubmissionsPage() {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
-    fetch("/api/scout/deals")
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((s) => {
+        const sid = s.scout_id;
+        return fetch(sid ? `/api/scout/deals?scout_id=${sid}` : "/api/scout/deals");
+      })
       .then((r) => r.json())
       .then(setDeals)
       .finally(() => setLoading(false));

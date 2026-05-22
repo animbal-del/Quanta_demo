@@ -1,37 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
-import { DEMO_SCOUT_ID } from "@/lib/demo/scout-os";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest) {
-  let scout_id = req.nextUrl.searchParams.get("scout_id");
+  const db = getSupabaseAdmin();
+  let scoutId: string | null = null;
 
-  if (!scout_id) {
-    const demoScoutId = req.cookies.get("quanta_scout_id")?.value;
-    if (demoScoutId) scout_id = demoScoutId;
+  // 1. Explicit query param (most reliable when pages pass it)
+  const paramId = req.nextUrl.searchParams.get("scout_id");
+  if (paramId && paramId !== "null") scoutId = paramId;
+
+  // 2. Demo cookie (set when user clicks "Explore demo" as scout)
+  if (!scoutId) {
+    const cookieId = req.cookies.get("quanta_scout_id")?.value;
+    if (cookieId) scoutId = cookieId;
   }
 
-  const db = getSupabaseAdmin();
-
-  if (!scout_id) {
+  // 3. Real Supabase session
+  if (!scoutId) {
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-
       if (user) {
         const { data: scout } = await db
           .from("scouts")
           .select("id")
           .eq("supabase_user_id", user.id)
           .maybeSingle();
-        scout_id = scout?.id ?? null;
+        scoutId = scout?.id ?? null;
       }
-    } catch {
-      scout_id = null;
-    }
+    } catch { /* session unavailable */ }
   }
 
-  scout_id = scout_id ?? DEMO_SCOUT_ID;
+  // No scout identified — return empty (never fall back to a hardcoded ID)
+  if (!scoutId) {
+    return NextResponse.json([]);
+  }
+
+  // Verify the scout exists in the DB (prevents FK / empty result issues)
+  const { data: scoutCheck } = await db
+    .from("scouts")
+    .select("id")
+    .eq("id", scoutId)
+    .maybeSingle();
+
+  if (!scoutCheck) {
+    // Scout ID doesn't exist in DB (stale localStorage, demo wipe, etc.)
+    return NextResponse.json([]);
+  }
 
   const { data: deals, error } = await db
     .from("deals")
@@ -40,8 +56,8 @@ export async function GET(req: NextRequest) {
       missing_info_tasks(id, status),
       partner_questions(id, status)
     `)
-    .eq("source_scout_id", scout_id)
-    .neq("status", "temp")        // temp = auto-created, not explicitly saved by scout
+    .eq("source_scout_id", scoutId)
+    .neq("status", "temp")
     .order("updated_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
