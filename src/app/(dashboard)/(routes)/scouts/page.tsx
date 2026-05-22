@@ -6,6 +6,48 @@ import { MessageSquare, TrendingUp, X, CheckCircle2, AlertCircle, Loader2 } from
 
 const FOCUS_OPTIONS = ["AI", "Developer Tools", "Fintech", "Healthcare", "Consumer", "Logistics", "B2B SaaS", "EdTech", "Climate", "Deep Tech"];
 
+// Manual trigger button — sends check-in email to all active scouts right now
+function SendCheckinButton() {
+  const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const [result, setResult] = useState("");
+
+  async function send() {
+    setState("sending");
+    try {
+      const res = await fetch("/api/internal/scheduler", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job: "checkins" }),
+      });
+      const data = await res.json();
+      setState("done");
+      setResult(`Sent to ${data.count ?? 0} scout${(data.count ?? 0) !== 1 ? "s" : ""} (${data.emails_sent ?? 0} emails delivered)`);
+      setTimeout(() => { setState("idle"); setResult(""); }, 6000);
+    } catch {
+      setState("error");
+      setResult("Failed — check console");
+      setTimeout(() => { setState("idle"); setResult(""); }, 4000);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button onClick={send} disabled={state === "sending"}
+        className={`h-8 px-3 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+          state === "done" ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          : state === "error" ? "bg-red-50 text-red-700 border border-red-200"
+          : "bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100"
+        }`}>
+        {state === "sending" ? <><Loader2 size={12} className="animate-spin" /> Sending…</>
+         : state === "done" ? "✓ Sent"
+         : state === "error" ? "✗ Failed"
+         : "📧 Send Check-in to All"}
+      </button>
+      {result && <p className="text-xs text-gray-500">{result}</p>}
+    </div>
+  );
+}
+
 interface Scout {
   id: string; full_name: string; email: string; preferred_channel: string;
   status: string; focus_areas: string[]; responsiveness_score: number;
@@ -142,12 +184,16 @@ export default function ScoutsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-950">Scout Network</h1>
-          <p className="text-xs text-gray-400 mt-0.5">{scouts.length} scouts</p>
+          <p className="text-xs text-gray-400 mt-0.5">{scouts.length} scouts · Check-in email: every Saturday 9am</p>
         </div>
-        <button onClick={() => setShowAdd(true)}
-          className="h-8 px-4 bg-gray-950 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors">
-          + Add Scout
-        </button>
+        <div className="flex gap-2">
+          {/* Manual trigger — sends check-in email to all active scouts immediately */}
+          <SendCheckinButton />
+          <button onClick={() => setShowAdd(true)}
+            className="h-8 px-4 bg-gray-950 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors">
+            + Add Scout
+          </button>
+        </div>
       </div>
 
       {invitedEmail && (

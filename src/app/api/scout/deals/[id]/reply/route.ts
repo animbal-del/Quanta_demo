@@ -88,7 +88,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const scoutId = await resolveScoutId(scout_id);
 
   // 1. Save the scout's message immediately
-  await db.from("deal_messages").insert({
+  const { error: scoutMsgError } = await db.from("deal_messages").insert({
     deal_id: params.id,
     scout_id: scoutId,
     sender_type: "scout",
@@ -96,6 +96,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     message_type: "text",
     body,
   });
+  if (scoutMsgError) {
+    console.error("[reply] Failed to save scout message:", scoutMsgError.message);
+    return NextResponse.json({ error: `Could not save message: ${scoutMsgError.message}` }, { status: 500 });
+  }
 
   // 2. Run commitment detection + context building in parallel
   const [commitment, dealContext] = await Promise.all([
@@ -146,13 +150,18 @@ Reply naturally as Quanta's scout liaison. Be specific to this deal. 1-3 sentenc
   const aiReply = await runTextCompletion(SCOUT_LIAISON_SYSTEM, userPrompt, "gpt-4o-mini");
 
   // 6. Save the AI reply to the conversation
-  await db.from("deal_messages").insert({
+  const { error: aiMsgError } = await db.from("deal_messages").insert({
     deal_id: params.id,
+    scout_id: null,
     sender_type: "ai",
     channel: "web",
     message_type: "text",
     body: aiReply.trim(),
   });
+  if (aiMsgError) {
+    console.error("[reply] Failed to save AI reply:", aiMsgError.message);
+    // Still return the reply so the scout sees it — next reload will re-sync from DB
+  }
 
   // 7. Update scout's last active timestamp
   if (scoutId) {

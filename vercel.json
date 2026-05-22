@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/internal/scheduler?job=checkins",
-      "schedule": "0 10 * * 1"
+      "schedule": "0 9 * * 6"
     },
     {
       "path": "/api/internal/scheduler?job=cleanup",

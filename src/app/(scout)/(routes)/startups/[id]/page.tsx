@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Send, Upload, Mic, Mail, AlertCircle,
-  FileText, Loader2, MessageCircle, LayoutGrid, Clock, Edit3, X, Sparkles,
+  FileText, Loader2, MessageCircle, LayoutGrid, Clock, Edit3, X, Sparkles, Plus,
 } from "lucide-react";
 
 interface Message { sender_type: string; body: string; created_at: string }
@@ -168,6 +168,44 @@ export default function StartupDetailPage() {
     if (tab === "interaction") bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [deal?.messages, tab]);
 
+  // Editable overview state
+  const [editingOverview, setEditingOverview] = useState(false);
+  const [editFields, setEditFields] = useState({ startup_name: "", one_line_description: "", category: "", stage: "" });
+  const [editFounders, setEditFounders] = useState<{ id?: string; full_name: string; linkedin_url: string; email: string }[]>([]);
+  const [savingOverview, setSavingOverview] = useState(false);
+
+  function startEditOverview() {
+    if (!deal) return;
+    setEditFields({
+      startup_name: deal.startup_name ?? "",
+      one_line_description: deal.one_line_description ?? "",
+      category: deal.category ?? "",
+      stage: deal.stage ?? "",
+    });
+    setEditFounders(deal.founders.map((f) => ({ id: (f as { id?: string }).id, full_name: f.full_name ?? "", linkedin_url: f.linkedin_url ?? "", email: (f as { email?: string }).email ?? "" })));
+    setEditingOverview(true);
+  }
+
+  async function saveOverview() {
+    if (!deal) return;
+    setSavingOverview(true);
+    await Promise.all([
+      fetch(`/api/startup/${deal.id}/update`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editFields),
+      }),
+      fetch(`/api/startup/${deal.id}/founders`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ founders: editFounders }),
+      }),
+    ]);
+    // Reload deal data
+    const updated = await fetch(`/api/internal/deals/${deal.id}`).then((r) => r.json());
+    setDeal(updated);
+    setSavingOverview(false);
+    setEditingOverview(false);
+  }
+
   const ratingAnswer = deal?.deal_answers.find((a) => a.question === "Investment Rating (1-4)");
   const ratingReasonAnswer = deal?.deal_answers.find((a) => a.question === "Rating Reason");
   const investmentRating = ratingAnswer ? parseInt(ratingAnswer.answer_text ?? "0") : 0;
@@ -241,17 +279,70 @@ export default function StartupDetailPage() {
 
       {tab === "overview" && (
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
-            {deal.founders.length > 0 && (
-              <div>
-                <p className="text-xs text-gray-400 mb-0.5">Founders</p>
-                <p className="text-sm font-medium text-gray-900">{deal.founders.map(f => f.full_name).filter(Boolean).join(", ")}</p>
-                <div className="flex gap-2 flex-wrap mt-0.5">{deal.founders.filter(f => f.linkedin_url).map((f, i) => <a key={i} href={f.linkedin_url!} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">LinkedIn →</a>)}</div>
+
+          {/* Startup info — view or edit mode */}
+          {editingOverview ? (
+            <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Edit Startup Info</p>
+              {[
+                { key: "startup_name", label: "Startup name" },
+                { key: "one_line_description", label: "What it does" },
+                { key: "category", label: "Category" },
+                { key: "stage", label: "Stage" },
+              ].map(({ key, label }) => (
+                <div key={key}>
+                  <label className="block text-xs text-gray-400 mb-1">{label}</label>
+                  <input value={editFields[key as keyof typeof editFields]}
+                    onChange={(e) => setEditFields((p) => ({ ...p, [key]: e.target.value }))}
+                    className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm focus:outline-none focus:border-gray-400" />
+                </div>
+              ))}
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-2">Founders</p>
+              {editFounders.map((f, i) => (
+                <div key={i} className="space-y-2 border border-gray-100 rounded-lg p-3">
+                  <input value={f.full_name} onChange={(e) => setEditFounders((p) => p.map((x, j) => j === i ? { ...x, full_name: e.target.value } : x))}
+                    placeholder="Full name" className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                  <input value={f.linkedin_url} onChange={(e) => setEditFounders((p) => p.map((x, j) => j === i ? { ...x, linkedin_url: e.target.value } : x))}
+                    placeholder="https://linkedin.com/in/..." type="url" className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                  <input value={f.email} onChange={(e) => setEditFounders((p) => p.map((x, j) => j === i ? { ...x, email: e.target.value } : x))}
+                    placeholder="email@example.com" type="email" className="w-full h-8 border border-gray-200 rounded-lg px-2.5 text-sm focus:outline-none focus:border-gray-400" />
+                </div>
+              ))}
+              <button onClick={() => setEditFounders((p) => [...p, { full_name: "", linkedin_url: "", email: "" }])}
+                className="text-xs text-indigo-600 hover:text-indigo-800">+ Add founder</button>
+              <div className="flex gap-2 pt-1">
+                <button onClick={saveOverview} disabled={savingOverview}
+                  className="flex-1 h-9 bg-gray-950 hover:bg-gray-800 text-white text-sm font-medium rounded-lg disabled:opacity-50">
+                  {savingOverview ? "Saving…" : "Save Changes"}
+                </button>
+                <button onClick={() => setEditingOverview(false)}
+                  className="h-9 px-4 border border-gray-200 rounded-lg text-sm text-gray-500">Cancel</button>
               </div>
-            )}
-            {deal.category && <div><p className="text-xs text-gray-400 mb-0.5">Category</p><p className="text-sm text-gray-700">{deal.category}</p></div>}
-            {deal.stage && <div><p className="text-xs text-gray-400 mb-0.5">Stage</p><p className="text-sm text-gray-700">{deal.stage}</p></div>}
-          </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 space-y-2.5">
+                  {deal.founders.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0.5">Founders</p>
+                      <p className="text-sm font-medium text-gray-900">{deal.founders.map(f => f.full_name).filter(Boolean).join(", ")}</p>
+                      <div className="flex gap-2 flex-wrap mt-0.5">
+                        {deal.founders.filter(f => f.linkedin_url).map((f, i) => (
+                          <a key={i} href={f.linkedin_url!} target="_blank" rel="noreferrer" className="text-xs text-indigo-600 hover:underline">LinkedIn →</a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {deal.category && <div><p className="text-xs text-gray-400 mb-0.5">Category</p><p className="text-sm text-gray-700">{deal.category}</p></div>}
+                  {deal.stage && <div><p className="text-xs text-gray-400 mb-0.5">Stage</p><p className="text-sm text-gray-700">{deal.stage}</p></div>}
+                </div>
+                <button onClick={startEditOverview} className="text-gray-400 hover:text-gray-700 p-1 shrink-0 ml-2">
+                  <Edit3 size={14} />
+                </button>
+              </div>
+            </div>
+          )}
 
           {investmentRating > 0 && (
             <RatingCard dealId={deal.id} rating={investmentRating} reason={ratingReason} onUpdate={updateRating} />
