@@ -106,6 +106,14 @@ export async function runPostSubmissionPipeline(dealId: string): Promise<Pipelin
     // Seed missing_info_tasks from the brief's open questions (so queue is never empty)
     if (brief.open_questions?.length > 0) {
       try {
+        // Get the source scout so tasks are linked and follow-up emails reach someone
+        const { data: dealRow } = await db
+          .from("deals")
+          .select("source_scout_id")
+          .eq("id", dealId)
+          .single();
+        const scoutId = dealRow?.source_scout_id ?? null;
+
         const { data: existingTasks } = await db
           .from("missing_info_tasks")
           .select("info_needed")
@@ -113,7 +121,7 @@ export async function runPostSubmissionPipeline(dealId: string): Promise<Pipelin
         const existing = new Set((existingTasks ?? []).map((t: { info_needed: string }) => t.info_needed.toLowerCase()));
         const newTasks = brief.open_questions
           .filter((q: string) => !existing.has(q.toLowerCase()))
-          .map((q: string) => ({ deal_id: dealId, info_needed: q, status: "pending" }));
+          .map((q: string) => ({ deal_id: dealId, scout_id: scoutId, info_needed: q, status: "pending" }));
         if (newTasks.length > 0) {
           await db.from("missing_info_tasks").insert(newTasks);
           steps.push({ step: "seed_tasks", status: "success", detail: `${newTasks.length} tasks created from brief` });

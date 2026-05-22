@@ -14,16 +14,33 @@ export async function runFollowupAgent(taskId: string): Promise<{ sent: boolean;
 
   const { data: task } = await db
     .from("missing_info_tasks")
-    .select(`*, deals(startup_name), scouts(full_name, email)`)
+    .select(`*, deals(startup_name, source_scout_id), scouts(full_name, email)`)
     .eq("id", taskId)
     .single();
 
   if (!task) throw new Error(`Task ${taskId} not found`);
   if (task.status !== "pending") return { sent: false, message: "Task not pending, skipped" };
 
-  const scoutName  = (task.scouts  as { full_name: string; email: string | null } | null)?.full_name ?? "Scout";
-  const scoutEmail = (task.scouts  as { full_name: string; email: string | null } | null)?.email ?? null;
-  const startupName = (task.deals  as { startup_name: string | null } | null)?.startup_name ?? "the startup";
+  const startupName = (task.deals as { startup_name: string | null; source_scout_id: string | null } | null)?.startup_name ?? "the startup";
+
+  // Resolve scout — task.scout_id takes priority, fall back to deal's source_scout_id
+  let scoutName  = (task.scouts as { full_name: string; email: string | null } | null)?.full_name ?? null;
+  let scoutEmail = (task.scouts as { full_name: string; email: string | null } | null)?.email ?? null;
+
+  if (!scoutEmail) {
+    const sourceScoutId = (task.deals as { startup_name: string | null; source_scout_id: string | null } | null)?.source_scout_id;
+    if (sourceScoutId) {
+      const { data: sourceScout } = await db
+        .from("scouts")
+        .select("full_name, email")
+        .eq("id", sourceScoutId)
+        .single();
+      scoutName  = sourceScout?.full_name ?? scoutName;
+      scoutEmail = sourceScout?.email ?? null;
+    }
+  }
+
+  scoutName = scoutName ?? "Scout";
 
   if (!scoutEmail) {
     return { sent: false, message: `Scout has no email on record — skipped` };
