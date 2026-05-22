@@ -9,16 +9,36 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
 
 function getAppOrigin() {
-  const configured = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const candidates = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : undefined,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+    "https://quanta-scout-os.vercel.app",
+    "http://localhost:3000",
+  ];
 
-  try {
-    return new URL(configured).origin;
-  } catch {
-    return "http://localhost:3000";
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+
+    try {
+      const url = new URL(candidate);
+      if (url.hostname.endsWith(".supabase.co")) continue;
+      return url.origin;
+    } catch {
+      continue;
+    }
   }
+
+  return "https://quanta-scout-os.vercel.app";
 }
 
 const APP_URL = getAppOrigin();
+
+export function buildCompleteSignupUrl(inviteToken: string) {
+  return `${APP_URL}/complete-signup?token=${inviteToken}`;
+}
 
 function isResendConfigured() {
   return Boolean(RESEND_API_KEY && !RESEND_API_KEY.startsWith("TODO_"));
@@ -129,7 +149,7 @@ export function buildInviteEmail(params: {
   invitedBy: string;
 }): { subject: string; html: string } {
   // Route group (auth) is transparent — correct URL is /complete-signup
-  const link = `${APP_URL}/complete-signup?token=${params.inviteToken}`;
+  const link = buildCompleteSignupUrl(params.inviteToken);
   const firstName = params.scoutName.split(" ")[0];
 
   const content = `

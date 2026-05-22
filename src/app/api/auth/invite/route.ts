@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
-import { sendEmail, buildInviteEmail } from "@/lib/resend/client";
+import { sendEmail, buildInviteEmail, buildCompleteSignupUrl } from "@/lib/resend/client";
 
 interface InviteRequest {
   full_name: string;
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     scout_id: scout.id,
     invite_token: invite.token,
+    invite_url: buildCompleteSignupUrl(invite.token),
     email_sent: !emailResult.simulated,
     simulated: emailResult.simulated,
     message: emailResult.simulated

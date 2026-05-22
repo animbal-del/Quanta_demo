@@ -1,10 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { DEMO_SCOUT_ID } from "@/lib/demo/scout-os";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(req: NextRequest) {
-  const scout_id = req.nextUrl.searchParams.get("scout_id") ?? DEMO_SCOUT_ID;
+  let scout_id = req.nextUrl.searchParams.get("scout_id");
+
+  if (!scout_id) {
+    const demoScoutId = req.cookies.get("quanta_scout_id")?.value;
+    if (demoScoutId) scout_id = demoScoutId;
+  }
+
   const db = getSupabaseAdmin();
+
+  if (!scout_id) {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: scout } = await db
+          .from("scouts")
+          .select("id")
+          .eq("supabase_user_id", user.id)
+          .maybeSingle();
+        scout_id = scout?.id ?? null;
+      }
+    } catch {
+      scout_id = null;
+    }
+  }
+
+  scout_id = scout_id ?? DEMO_SCOUT_ID;
 
   const { data: deals, error } = await db
     .from("deals")
