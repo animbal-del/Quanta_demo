@@ -4,18 +4,24 @@ import { getSupabaseAdmin } from "@/lib/supabase/client";
 export async function GET() {
   const db = getSupabaseAdmin();
 
+  // Only count real submitted deals — never temp (abandoned flows) or draft (unsaved)
+  const EXCLUDED_STATUSES = "('temp','draft')";
+
   const [dealsRes, tasksRes, scoutsRes, recentDealsRes] = await Promise.all([
-    db.from("deals").select("id, status, category, source_scout_id, priority, created_at"),
+    db.from("deals")
+      .select("id, status, category, source_scout_id, priority, created_at")
+      .not("status", "in", EXCLUDED_STATUSES)
+      .not("startup_name", "is", null),
     db.from("missing_info_tasks").select("info_needed").eq("status", "pending"),
     db.from("scouts").select("id, full_name"),
     db.from("deals")
       .select("created_at, status")
-      .neq("status", "draft")
+      .not("status", "in", EXCLUDED_STATUSES)
       .not("startup_name", "is", null)
       .gte("created_at", new Date(Date.now() - 56 * 86400000).toISOString()),
   ]);
 
-  const deals = (dealsRes.data ?? []).filter((d) => d.status !== "draft");
+  const deals = dealsRes.data ?? [];
 
   const byStatus = deals.reduce<Record<string, number>>((acc, d) => {
     acc[d.status] = (acc[d.status] ?? 0) + 1;
