@@ -61,9 +61,9 @@ function createDemoLoginResponse(role: "quanta" | "scout") {
 
 export async function POST(req: NextRequest) {
   // 1. Validate body
-  let email: string, password: string;
+  let email: string, password: string, requestedRole: string | undefined;
   try {
-    ({ email, password } = await req.json());
+    ({ email, password, role: requestedRole } = await req.json());
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -87,6 +87,10 @@ export async function POST(req: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !isValidSupabasePublicKey(supabaseAnonKey)) {
+    if (requestedRole === "scout") {
+      return createDemoLoginResponse("scout");
+    }
+
     console.error("[login] Supabase env vars missing or invalid");
     return NextResponse.json(
       { error: "Supabase is misconfigured. Use the demo account or update the Supabase environment keys." },
