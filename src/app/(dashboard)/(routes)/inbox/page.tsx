@@ -194,6 +194,14 @@ export default function InboxPage() {
                         </>
                       )}
                     </div>
+                    {/* Missing info pill — shown below meta row */}
+                    {deal.status === "needs_info" && (
+                      <div className="mt-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                          <AlertCircle size={8} /> Missing info — scout needs to provide details
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions — stop propagation so they don't navigate to deal detail */}

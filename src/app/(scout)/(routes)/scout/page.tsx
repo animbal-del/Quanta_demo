@@ -31,6 +31,8 @@ export default function ScoutHomePage() {
   const [deals, setDeals] = useState<ScoutDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("there");
+  const [checkinPending, setCheckinPending] = useState(false); // unanswered check-in email
+  const [scoutId, setScoutId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -38,6 +40,7 @@ export default function ScoutHomePage() {
       .then((s) => {
         if (s.display_name) setDisplayName(s.display_name.split(" ")[0]);
         const sid = s.scout_id;
+        setScoutId(sid);
         const url = sid ? `/api/scout/deals?scout_id=${sid}` : "/api/scout/deals";
         return fetch(url);
       })
@@ -46,7 +49,17 @@ export default function ScoutHomePage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Check for unanswered check-in emails (notification banner)
+  useEffect(() => {
+    if (!scoutId) return;
+    fetch(`/api/scout/checkin-status?scout_id=${scoutId}`)
+      .then((r) => r.json())
+      .then((d) => setCheckinPending(d.has_unanswered ?? false))
+      .catch(() => null);
+  }, [scoutId]);
+
   const needsAction = deals.filter((d) => d.has_pending_question || d.status === "needs_info");
+  const totalMissing = deals.reduce((acc, d) => acc + (d.missing_count ?? 0), 0);
   const submitted = deals.length;
   const inReview = deals.filter((d) => d.status === "under_review" || d.status === "monitor").length;
 
@@ -71,6 +84,33 @@ export default function ScoutHomePage() {
           </div>
         </div>
       </header>
+
+      {/* Notification banners */}
+      {checkinPending && (
+        <div className="mx-4 mt-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Bell size={14} className="text-indigo-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-indigo-900">Quanta checked in</p>
+            <p className="text-xs text-indigo-600">Did you meet any interesting founders this week?</p>
+          </div>
+          <div className="flex gap-1.5 shrink-0">
+            <Link href="/add-startup" className="text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-2.5 py-1 rounded-lg">Yes →</Link>
+            <a href={`/api/email/respond?scout=${scoutId}&response=nothing_this_week`}
+              className="text-xs font-medium text-indigo-600 bg-white border border-indigo-200 hover:bg-indigo-50 px-2.5 py-1 rounded-lg">No</a>
+          </div>
+        </div>
+      )}
+
+      {!loading && totalMissing > 0 && (
+        <div className="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <AlertCircle size={14} className="text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-900">{totalMissing} item{totalMissing > 1 ? "s" : ""} still needed</p>
+            <p className="text-xs text-amber-600">Quanta is waiting on information for your submissions.</p>
+          </div>
+          <Link href="/submissions" className="text-xs font-semibold text-amber-700 border border-amber-300 bg-white hover:bg-amber-50 px-2.5 py-1 rounded-lg shrink-0">View →</Link>
+        </div>
+      )}
 
       {/* CTA */}
       <div className="px-4 py-5 border-b border-gray-100">

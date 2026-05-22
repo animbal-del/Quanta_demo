@@ -127,6 +127,16 @@ export default function ScoutDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {/* Send "any new startups?" reminder email with yes/no CTA */}
+          <button
+            onClick={async () => {
+              const res = await fetch(`/api/internal/scouts/${id}/remind`, { method: "POST" });
+              const data = await res.json();
+              alert(data.message ?? (data.sent ? "Reminder sent!" : "Failed"));
+            }}
+            className="flex items-center gap-1.5 h-8 px-3 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+            <Mail size={13} /> Send Reminder
+          </button>
           <button onClick={sendCheckin} disabled={checkinLoading || checkinSent}
             className={`flex items-center gap-1.5 h-8 px-3 text-sm font-medium border rounded-lg transition-colors ${
               checkinSent ? "bg-emerald-50 border-emerald-200 text-emerald-700"
@@ -137,7 +147,7 @@ export default function ScoutDetailPage() {
           </button>
           <button onClick={() => setEmailModal(true)}
             className="flex items-center gap-1.5 h-8 px-3 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            <Mail size={13} /> Email
+            <Mail size={13} /> Custom Email
           </button>
         </div>
 

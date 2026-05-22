@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+  // If "yes" — log a notification so it appears in the scout's dashboard
+  // We don't create a deal yet — the scout does that themselves via /add-startup
+
   if (response === "yes_have_startup") {
     return NextResponse.redirect(`${appUrl}/add-startup`);
   }

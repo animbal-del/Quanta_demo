@@ -110,7 +110,13 @@ export default function SubmissionsPage() {
                   <p className="text-xs text-gray-400 mb-2 truncate">{deal.one_line_description}</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.badgeClass}`}>{cfg.label}</span>
-                    {deal.next_step && (
+                    {/* Missing info badge */}
+                    {deal.missing_count > 0 && (
+                      <span className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1 shrink-0 border border-amber-200">
+                        <AlertCircle size={9} />{deal.missing_count} info needed
+                      </span>
+                    )}
+                    {deal.next_step && !deal.missing_count && (
                       <span className="text-xs text-gray-400 flex items-center gap-1">
                         <AlertCircle size={9} />{deal.next_step}
                       </span>
