@@ -24,7 +24,6 @@ interface Extraction {
   confidence?: number;
 }
 
-const DEMO_SCOUT_ID = "11111111-1111-1111-1111-111111111111";
 const INDICATORS = ["Problem", "Product", "Why interesting", "Traction"];
 const MODE_OPTIONS = [
   { id: "voice" as const, label: "Voice Pitch", icon: Mic, desc: "Record a 2-minute elevator pitch" },
@@ -32,10 +31,11 @@ const MODE_OPTIONS = [
   { id: "document" as const, label: "Upload Document", icon: FileUp, desc: "Deck, PDF, or screenshot" },
 ];
 
-function getScoutId() {
-  return typeof window !== "undefined"
-    ? (localStorage.getItem("quanta_scout_id") ?? DEMO_SCOUT_ID)
-    : DEMO_SCOUT_ID;
+// Returns scout_id from localStorage (set at login), or null.
+// The init API validates this against the DB and falls back to null if not found.
+function getScoutId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("quanta_scout_id") ?? null;
 }
 
 // ─── Multi-step processing indicator ─────────────────────────────────────────
@@ -512,7 +512,8 @@ export default function AddStartupPage() {
     setProcessing(true);
     const formData = new FormData();
     formData.append("audio", recordedBlob, "pitch.webm");
-    formData.append("scout_id", getScoutId());
+    const scoutId = getScoutId();
+    if (scoutId) formData.append("scout_id", scoutId);
     try {
       const res = await fetch(`/api/startup/${id}/audio`, { method: "POST", body: formData });
       const data = await res.json();
