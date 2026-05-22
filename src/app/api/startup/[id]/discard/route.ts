@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 /**
  * DELETE /api/startup/:id/discard
  * Removes a temp deal that was never saved or submitted.

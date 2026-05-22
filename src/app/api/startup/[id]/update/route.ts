@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 /**
  * PATCH /api/startup/:id/update
  *

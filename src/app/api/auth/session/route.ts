@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 /**
  * GET /api/auth/session
  * Returns the current user's session info from Supabase Auth only.

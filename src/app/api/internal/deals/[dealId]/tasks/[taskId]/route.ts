@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 /**
  * PATCH /api/internal/deals/:dealId/tasks/:taskId
  * Mark a missing_info_task as completed, deferred, or cancelled from the dashboard.

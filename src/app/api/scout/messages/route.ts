@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { runScoutIntakeAgent } from "@/agents/intake";
 import { isDemoMode, processDemoScoutMessage } from "@/lib/demo/scout-os";

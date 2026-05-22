@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 /**
  * POST /api/internal/scouts/:id/remind
  * Sends a "Have you interacted with any new startups?" email to the scout.

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 /**
  * POST /api/startup/:id/missing-tasks
  * Saves explicit missing info tasks from the scout's "Don't have this yet" selections.

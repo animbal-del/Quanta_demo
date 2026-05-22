@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { runDueFollowups } from "@/agents/followup";
 import { runAllCheckins } from "@/agents/checkin";

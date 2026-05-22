@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { runPartnerQuestionAgent } from "@/agents/partner";
 import { askScoutDemo, isDemoMode } from "@/lib/demo/scout-os";
