@@ -101,45 +101,52 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: `Could not save message: ${scoutMsgError.message}` }, { status: 500 });
   }
 
-  // 2. Run commitment detection + context building in parallel
-  const [commitment, dealContext] = await Promise.all([
-    runStructuredCompletion<CommitmentOutput>(
-      COMMITMENT_EXTRACTION_SYSTEM_PROMPT,
-      buildCommitmentUserPrompt(body, today),
-      AI_MODELS.commitment
-    ),
-    buildDealContext(params.id, db),
-  ]);
+  // 2–7. AI processing — wrapped so a Groq failure doesn't lose the scout's message
+  let aiReply = "Thanks — we'll take a look and follow up if we have questions.";
+  let commitmentDetected = false;
 
-  // 3. Save commitment as a missing_info_task if detected
-  if (commitment.has_commitment && commitment.missing_item) {
-    await db.from("missing_info_tasks").insert({
-      deal_id: params.id,
-      scout_id: scoutId,
-      info_needed: commitment.missing_item,
-      expected_date: commitment.expected_date,
-      followup_date: commitment.followup_date,
-      status: "pending",
-    });
-  }
+  try {
+    // 2. Run commitment detection + context building in parallel
+    const [commitment, dealContext] = await Promise.all([
+      runStructuredCompletion<CommitmentOutput>(
+        COMMITMENT_EXTRACTION_SYSTEM_PROMPT,
+        buildCommitmentUserPrompt(body, today),
+        AI_MODELS.commitment
+      ),
+      buildDealContext(params.id, db),
+    ]);
 
-  // 4. Mark any pending partner question as answered
-  const { data: pendingPQ } = await db
-    .from("partner_questions")
-    .select("id")
-    .eq("deal_id", params.id)
-    .eq("status", "sent")
-    .limit(1)
-    .maybeSingle();
+    commitmentDetected = commitment.has_commitment ?? false;
 
-  if (pendingPQ) {
-    await db.from("partner_questions")
-      .update({ status: "answered", answered_at: new Date().toISOString() })
-      .eq("id", pendingPQ.id);
-  }
+    // 3. Save commitment as a missing_info_task if detected
+    if (commitment.has_commitment && commitment.missing_item) {
+      await db.from("missing_info_tasks").insert({
+        deal_id: params.id,
+        scout_id: scoutId,
+        info_needed: commitment.missing_item,
+        expected_date: commitment.expected_date,
+        followup_date: commitment.followup_date,
+        status: "pending",
+      });
+    }
 
-  // 5. Generate a natural, contextual AI reply
-  const userPrompt = `${dealContext}
+    // 4. Mark any pending partner question as answered
+    const { data: pendingPQ } = await db
+      .from("partner_questions")
+      .select("id")
+      .eq("deal_id", params.id)
+      .eq("status", "sent")
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingPQ) {
+      await db.from("partner_questions")
+        .update({ status: "answered", answered_at: new Date().toISOString() })
+        .eq("id", pendingPQ.id);
+    }
+
+    // 5. Generate a natural, contextual AI reply
+    const userPrompt = `${dealContext}
 
 SCOUT'S LATEST MESSAGE: "${body}"
 
@@ -147,30 +154,39 @@ ${commitment.has_commitment ? `Note: Scout committed to provide "${commitment.mi
 
 Reply naturally as Quanta's scout liaison. Be specific to this deal. 1-3 sentences max.`;
 
-  const aiReply = await runTextCompletion(SCOUT_LIAISON_SYSTEM, userPrompt, "gpt-4o-mini");
+    aiReply = await runTextCompletion(SCOUT_LIAISON_SYSTEM, userPrompt, "gpt-4o-mini");
+    aiReply = aiReply.trim();
 
-  // 6. Save the AI reply to the conversation
-  const { error: aiMsgError } = await db.from("deal_messages").insert({
-    deal_id: params.id,
-    scout_id: null,
-    sender_type: "ai",
-    channel: "web",
-    message_type: "text",
-    body: aiReply.trim(),
-  });
-  if (aiMsgError) {
-    console.error("[reply] Failed to save AI reply:", aiMsgError.message);
-    // Still return the reply so the scout sees it — next reload will re-sync from DB
-  }
+    // 6. Save the AI reply to the conversation
+    const { error: aiMsgError } = await db.from("deal_messages").insert({
+      deal_id: params.id,
+      scout_id: null,
+      sender_type: "ai",
+      channel: "web",
+      message_type: "text",
+      body: aiReply,
+    });
+    if (aiMsgError) console.error("[reply] Failed to save AI reply:", aiMsgError.message);
 
-  // 7. Update scout's last active timestamp
-  if (scoutId) {
-    await db.from("scouts").update({ last_active_at: new Date().toISOString() }).eq("id", scoutId);
+    // 7. Update scout's last active timestamp
+    if (scoutId) {
+      await db.from("scouts").update({ last_active_at: new Date().toISOString() }).eq("id", scoutId);
+    }
+  } catch (aiErr) {
+    console.error("[reply] AI step failed (message was saved):", aiErr);
+    // Save the fallback reply so the conversation thread isn't broken
+    await db.from("deal_messages").insert({
+      deal_id: params.id,
+      scout_id: null,
+      sender_type: "ai",
+      channel: "web",
+      message_type: "text",
+      body: aiReply,
+    }).then(({ error }) => { if (error) console.error("[reply] Failed to save fallback reply:", error.message); });
   }
 
   return NextResponse.json({
-    ai_reply: aiReply.trim(),
-    commitment_detected: commitment.has_commitment,
-    context_length: dealContext.length,
+    ai_reply: aiReply,
+    commitment_detected: commitmentDetected,
   });
 }
