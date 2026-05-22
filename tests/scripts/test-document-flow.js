@@ -3,7 +3,7 @@
  * test-document-flow.js
  *
  * Tests the document upload pipeline end-to-end.
- * Uploads tests/samples/documents/quantumsort-deck.txt to Supabase Storage
+ * Uploads tests/samples/documents/quantumsort-deck.doc to Supabase Storage
  * via presigned URL, then runs AI enrichment on it.
  *
  * Run: node tests/scripts/test-document-flow.js
@@ -14,7 +14,9 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SAMPLE_DOC_PATH = join(__dirname, "../samples/documents/quantumsort-deck.txt");
+const SAMPLE_DOC_PATH = join(__dirname, "../samples/documents/quantumsort-deck.doc");
+const SAMPLE_DOC_NAME = "quantumsort-deck.doc";
+const SAMPLE_DOC_TYPE = "application/msword";
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3000";
 const SCOUT_ID = process.env.SCOUT_ID ?? "22222222-2222-2222-2222-222222222222";
@@ -66,7 +68,7 @@ async function run() {
   // Step 2: Get presigned upload URL
   log(2, TOTAL, "Getting Supabase Storage presigned URL...", "running");
   const presignRes = await fetch(
-    `${BASE_URL}/api/upload/presign?bucket=deal-files&filename=quantumsort-deck.txt&deal_id=${deal_id}`
+    `${BASE_URL}/api/upload/presign?bucket=deal-files&filename=${encodeURIComponent(SAMPLE_DOC_NAME)}&deal_id=${deal_id}`
   );
   const { signed_url, storage_url } = await presignRes.json();
   if (!signed_url) throw new Error("No signed URL returned from presign endpoint");
@@ -76,7 +78,7 @@ async function run() {
   log(3, TOTAL, "Uploading document to Supabase Storage...", "running");
   const uploadRes = await fetch(signed_url, {
     method: "PUT",
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": SAMPLE_DOC_TYPE },
     body: docContent,
   });
   if (!uploadRes.ok) throw new Error(`Upload failed: HTTP ${uploadRes.status}`);
@@ -86,8 +88,8 @@ async function run() {
   log(4, TOTAL, "Running AI enrichment on document...", "running");
   const enrichmentRes = await post(`/api/startup/${deal_id}/file`, {
     storage_url,
-    file_name: "quantumsort-deck.txt",
-    file_type: "text/plain",
+    file_name: SAMPLE_DOC_NAME,
+    file_type: SAMPLE_DOC_TYPE,
     scout_id: SCOUT_ID,
   });
   const extraction = enrichmentRes.extraction;

@@ -16,8 +16,10 @@ tests/
     test-all.js              ← runs all three in sequence
   samples/
     documents/
-      quantumsort-deck.txt   ← sample pitch deck for document flow test
-      agripulse-brief.txt    ← shorter brief for a second test
+      quantumsort-deck.doc   ← sample pitch deck for document flow test
+      agripulse-brief.doc    ← shorter brief for a second test
+      healththread-pilot-brief.doc
+      buildright-customer-case-study.doc
     audio/
       agripulse-pitch.txt    ← full script to read for a 2-min voice pitch
       voice-test-guide.md    ← step-by-step guide for browser voice test
@@ -64,7 +66,7 @@ Simulates the pipeline after a voice recording is transcribed:
 Full end-to-end document upload:
 1. Creates a new draft deal
 2. Gets a Supabase Storage presigned URL
-3. Uploads `samples/documents/quantumsort-deck.txt` directly to Supabase Storage
+3. Uploads `samples/documents/quantumsort-deck.doc` directly to Supabase Storage
 4. Calls the enrichment endpoint with the storage URL
 5. Prints the AI-extracted data
 6. Generates questions and submits

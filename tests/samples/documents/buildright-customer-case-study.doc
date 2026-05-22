@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BuildRight Customer Case Study</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.5; margin: 40px; }
+    h1 { font-size: 24px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin-top: 24px; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; }
+    p, li { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>BuildRight AI - Customer Case Study</h1>
+  <p><strong>Category:</strong> AI / Construction<br><strong>Customer:</strong> Hennessy Commercial Contractors<br><strong>Stage:</strong> Seed</p>
+
+  <h2>Product</h2>
+  <p>BuildRight AI ingests site IoT data, weather feeds, supplier timelines, and project plans to predict delays and cost overruns three to four weeks before they occur.</p>
+
+  <h2>Customer Outcome</h2>
+  <ul>
+    <li>23% reduction in unplanned delays across four projects.</li>
+    <li>Zero churn among the first five paying customers.</li>
+    <li>USD 8K MRR within the first three months of commercial use.</li>
+  </ul>
+
+  <h2>Founder</h2>
+  <p>Vikram Patel spent 8 years as a general contractor before studying computer science at UIUC. He previously founded and sold a small construction software company.</p>
+
+  <h2>Investor Questions</h2>
+  <ul>
+    <li>Can churn and MRR claims be verified with signed contracts?</li>
+    <li>What is the model accuracy on projects outside the Midwest?</li>
+    <li>How much deployment work is required per new customer?</li>
+  </ul>
+</body>
+</html>

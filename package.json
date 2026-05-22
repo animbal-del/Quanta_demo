@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:migrate": "supabase db push",
-    "db:seed": "supabase db reset --db-url $DATABASE_URL && psql $DATABASE_URL -f supabase/seed/demo-seed.sql"
+    "db:seed": "supabase db reset --db-url $DATABASE_URL && psql $DATABASE_URL -f supabase/seed/demo-seed-v2.sql",
+    "db:seed:basic": "supabase db reset --db-url $DATABASE_URL && psql $DATABASE_URL -f supabase/seed/demo-seed.sql"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

@@ -62,6 +62,90 @@ const demoDeals: DealInboxItem[] = [
     created_at: "2026-05-18T15:00:00Z",
     updated_at: "2026-05-19T15:00:00Z",
   },
+  {
+    id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+    startup_name: "CarbonLoop",
+    summary: "Industrial carbon capture using proprietary sorbent material",
+    status: "intro_requested",
+    priority: "high",
+    scout: { id: "33333333-3333-3333-3333-333333333333", full_name: "Jordan Lee" },
+    signals: {
+      founder_signal: {
+        level: "strong",
+        evidence: "Founder has MIT materials science background and patents in solid sorbent capture.",
+      },
+      traction_signal: {
+        level: "medium",
+        evidence: "NSF grant and early lab validation, but commercial pilot economics still need proof.",
+      },
+    },
+    next_action: "Schedule founder intro and technical diligence",
+    created_at: "2026-05-04T16:20:00Z",
+    updated_at: "2026-05-21T18:00:00Z",
+  },
+  {
+    id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    startup_name: "BuildRight AI",
+    summary: "Predictive project management for construction delays and overruns",
+    status: "under_review",
+    priority: "normal",
+    scout: { id: DEMO_SCOUT_ID, full_name: "Amit Sharma" },
+    signals: {
+      founder_signal: {
+        level: "medium",
+        evidence: "Founder has direct contractor experience and a prior software exit.",
+      },
+      traction_signal: {
+        level: "early",
+        evidence: "Five paying customers and early MRR, with geography concentrated in the Midwest.",
+      },
+    },
+    next_action: "Request customer references",
+    created_at: "2026-05-01T14:00:00Z",
+    updated_at: "2026-05-18T12:00:00Z",
+  },
+  {
+    id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+    startup_name: "HealthThread",
+    summary: "Clinical decision support surfaced inside emergency department workflows",
+    status: "needs_info",
+    priority: "normal",
+    scout: { id: "22222222-2222-2222-2222-222222222222", full_name: "Sarah Chen" },
+    signals: {
+      founder_signal: {
+        level: "strong",
+        evidence: "Physician-founder has direct ER experience and a technical cofounder from Google Health.",
+      },
+      traction_signal: {
+        level: "early",
+        evidence: "Hospital pilot is live, but outcome data is not ready yet.",
+      },
+    },
+    next_action: "Ask for pilot metrics and security audit timing",
+    created_at: "2026-05-11T09:30:00Z",
+    updated_at: "2026-05-20T15:45:00Z",
+  },
+  {
+    id: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+    startup_name: "DevPulse",
+    summary: "ML-powered regression detection inside pull request review",
+    status: "monitor",
+    priority: "normal",
+    scout: { id: "33333333-3333-3333-3333-333333333333", full_name: "Jordan Lee" },
+    signals: {
+      founder_signal: {
+        level: "strong",
+        evidence: "Founder helped build GitHub Actions and understands CI/CD adoption deeply.",
+      },
+      traction_signal: {
+        level: "medium",
+        evidence: "Waitlist and early paying teams exist, but legal questions remain.",
+      },
+    },
+    next_action: "Review non-compete before moving forward",
+    created_at: "2026-04-27T17:00:00Z",
+    updated_at: "2026-05-16T10:15:00Z",
+  },
 ];
 
 export function getDemoInboxItems() {

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>QuantumSort Investor Pitch Deck</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.5; margin: 40px; }
+    h1 { font-size: 24px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin-top: 24px; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; }
+    p, li { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>QuantumSort - Investor Pitch Deck</h1>
+  <p><strong>Series:</strong> Pre-Seed<br><strong>Date:</strong> May 2026<br><strong>Contact:</strong> priya.shah@quantumsort.io</p>
+
+  <h2>Problem</h2>
+  <p>Logistics companies spend 12-18% of operational costs on route optimization. Existing routing systems become slow as route complexity grows, especially during peak delivery seasons.</p>
+
+  <h2>Solution</h2>
+  <p>QuantumSort is a quantum-classical hybrid optimization engine for large-scale logistics routing. It uses quantum annealing for the combinatorial core of vehicle routing, then classical post-processing to deliver deployable routes in minutes.</p>
+
+  <h2>Founding Team</h2>
+  <p><strong>Priya Shah, CEO:</strong> PhD Operations Research, IIT Delhi; former IBM Quantum researcher; published 6 papers on quantum optimization in logistics.</p>
+  <p><strong>Arjun Krishna, CTO:</strong> Former Staff Engineer at Delhivery; built routing systems for 800,000 daily deliveries.</p>
+
+  <h2>Traction</h2>
+  <ul>
+    <li>Two paying pilots: Shadowfax Technologies and WareIQ.</li>
+    <li>INR 5,80,000 MRR, roughly USD 7,000.</li>
+    <li>23% reduction in distance driven in Shadowfax pilot.</li>
+    <li>8 additional logistics companies on waitlist.</li>
+  </ul>
+
+  <h2>Business Model</h2>
+  <p>SaaS pricing based on monthly base fees plus API calls. Starter begins at INR 1,50,000/month. Growth plan begins at INR 4,00,000/month.</p>
+
+  <h2>Ask</h2>
+  <p>Raising INR 4 crore pre-seed for quantum compute infrastructure, engineering hires, enterprise sales, and IP/legal work.</p>
+</body>
+</html>

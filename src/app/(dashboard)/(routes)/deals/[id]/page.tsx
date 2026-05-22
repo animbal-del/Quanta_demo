@@ -111,8 +111,40 @@ async function downloadFile(storageUrl: string, fileName: string): Promise<strin
   return null; // null = success
 }
 
-function downloadText(text: string, filename: string) {
-  const blob = new Blob([text], { type: "text/plain" });
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function safeFileName(value: string | null | undefined) {
+  return (value ?? "startup")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "startup";
+}
+
+function downloadDoc(text: string, filename: string, title: string) {
+  const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.5; margin: 40px; }
+    h1 { font-size: 22px; margin: 0 0 18px; }
+    pre { white-space: pre-wrap; font-family: Arial, sans-serif; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <pre>${escapeHtml(text)}</pre>
+</body>
+</html>`;
+  const blob = new Blob([html], { type: "application/msword;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = filename;
@@ -602,7 +634,11 @@ export default function DealDetailPage() {
                     <div key={f.id} className="space-y-2">
                       <AudioPlayer storageUrl={f.storage_url} label={f.file_name ?? "Voice pitch"} />
                       {f.extracted_text && (
-                        <button onClick={() => downloadText(f.extracted_text!, `transcript-${deal.startup_name}.txt`)}
+                        <button onClick={() => downloadDoc(
+                          f.extracted_text!,
+                          `transcript-${safeFileName(deal.startup_name)}.doc`,
+                          `${deal.startup_name ?? "Startup"} transcript`,
+                        )}
                           className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800">
                           <Download size={11} /> Download transcript
                         </button>

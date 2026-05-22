@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AgriPulse Executive Brief</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.5; margin: 40px; }
+    h1 { font-size: 24px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin-top: 24px; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; }
+    p, li { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>AgriPulse - Executive Brief</h1>
+  <p><strong>Category:</strong> AgriTech / IoT<br><strong>Stage:</strong> Pre-Seed<br><strong>Date:</strong> May 2026</p>
+
+  <h2>Company Overview</h2>
+  <p>AgriPulse provides affordable soil sensor networks and AI-driven irrigation recommendations to smallholder farmers in Maharashtra, India. The core product is a solar-powered, LoRaWAN-connected soil moisture and temperature sensor that costs INR 400 to manufacture and deploys in 15 minutes. Farmers receive daily WhatsApp recommendations in Marathi, Hindi, and English.</p>
+
+  <h2>Founding Team</h2>
+  <p><strong>Rahul Patil, CEO:</strong> Raised on a 4-acre farm in Nashik, B.Sc Agriculture from VNMKV Parbhani, MBA from SPJIMR Mumbai, former Agri Business Manager at HDFC Bank.</p>
+  <p><strong>Kiran Deshmukh, CTO:</strong> B.Tech Electronics from VJTI Mumbai, former IoT Engineer at Bosch India, patent holder in low-power LoRaWAN sensor design.</p>
+
+  <h2>Problem</h2>
+  <p>India's smallholder farmers often irrigate based on experience and guesswork. This leads to excess water usage, crop loss, and groundwater depletion. Existing precision agriculture platforms are priced for larger farms and remain out of reach for 2-acre smallholders.</p>
+
+  <h2>Solution</h2>
+  <ul>
+    <li>INR 400 soil sensor with 18-month solar battery life.</li>
+    <li>Daily WhatsApp irrigation recommendations.</li>
+    <li>Works on basic smartphones and supports 2G environments.</li>
+    <li>INR 500/month subscription.</li>
+  </ul>
+
+  <h2>Traction</h2>
+  <ul>
+    <li>247 farms on platform as of May 2026.</li>
+    <li>INR 1,23,500 MRR, growing around 35% month over month for the last 3 months.</li>
+    <li>38% average reported water reduction per farm.</li>
+    <li>MOU signed with Nashik District Agriculture Office.</li>
+  </ul>
+
+  <h2>Ask</h2>
+  <p>Raising INR 1.5 crore pre-seed to scale sensor manufacturing, improve crop models with agronomist partners, and build the FPO sales channel.</p>
+</body>
+</html>

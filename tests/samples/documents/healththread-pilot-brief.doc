@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HealthThread Pilot Brief</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.5; margin: 40px; }
+    h1 { font-size: 24px; margin-bottom: 4px; }
+    h2 { font-size: 16px; margin-top: 24px; border-bottom: 1px solid #d1d5db; padding-bottom: 4px; }
+    p, li { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>HealthThread - Pilot Brief</h1>
+  <p><strong>Category:</strong> Healthcare AI<br><strong>Stage:</strong> Pre-Seed<br><strong>Source:</strong> Hospital pilot memo</p>
+
+  <h2>What It Does</h2>
+  <p>HealthThread integrates with hospital EMR systems and surfaces relevant case history, drug interaction warnings, and clinical guidelines while emergency physicians write notes.</p>
+
+  <h2>Team</h2>
+  <p><strong>Dr. Ananya Sharma:</strong> ER physician with 10 years of experience at AIIMS Delhi.</p>
+  <p><strong>Karan Mehta:</strong> Ex-Google Health engineer who built ML infrastructure for medical imaging products.</p>
+
+  <h2>Traction</h2>
+  <ul>
+    <li>Six-month pilot live at Fortis Mumbai.</li>
+    <li>200 patients processed through the workflow.</li>
+    <li>EMR integration is live without requiring a new physician workflow.</li>
+    <li>Hospital legal team approved data handling under DPDP requirements.</li>
+  </ul>
+
+  <h2>Open Questions</h2>
+  <ul>
+    <li>When will clinical outcome data be available?</li>
+    <li>Who is conducting the third-party security audit?</li>
+    <li>What does expansion to the next two hospitals look like?</li>
+  </ul>
+</body>
+</html>
