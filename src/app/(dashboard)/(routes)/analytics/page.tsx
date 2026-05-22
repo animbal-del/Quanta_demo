@@ -188,7 +188,6 @@ export default function AnalyticsPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number, name: string) => [value, name]}
                     contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb" }}
                   />
                 </PieChart>

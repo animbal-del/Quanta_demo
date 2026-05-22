@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const SCOUT_ROUTES  = ["/scout", "/add-startup", "/startups", "/submissions", "/chat"];
+const SCOUT_ROUTES  = ["/scout", "/add-startup", "/startups", "/submissions", "/chat", "/account", "/dashboard"];
 const TEAM_ROUTES   = ["/inbox", "/deals", "/scouts", "/queue", "/analytics", "/profile"];
 const PUBLIC_ROUTES = ["/", "/complete-signup", "/auth"];
 

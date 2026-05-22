@@ -56,7 +56,7 @@ export default function ScoutHomePage() {
             <Link href="/dashboard" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
               <Bell size={13} className="text-gray-600" />
             </Link>
-            <Link href="/profile">
+            <Link href="/account">
               <div className="w-8 h-8 rounded-full bg-gray-950 flex items-center justify-center hover:bg-gray-800 transition-colors">
                 <User size={14} className="text-white" />
               </div>

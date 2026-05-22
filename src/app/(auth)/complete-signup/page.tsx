@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Zap, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
+import { Zap, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 
 interface TokenInfo {
   valid: boolean;
@@ -11,7 +11,8 @@ interface TokenInfo {
   error?: string;
 }
 
-export default function CompleteSignupPage() {
+// Inner component uses useSearchParams — must be inside Suspense
+function CompleteSignupInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token") ?? "";
@@ -168,5 +169,17 @@ export default function CompleteSignupPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function CompleteSignupPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 size={20} className="animate-spin text-gray-400" />
+      </main>
+    }>
+      <CompleteSignupInner />
+    </Suspense>
   );
 }

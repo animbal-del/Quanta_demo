@@ -52,7 +52,6 @@ export async function groqStructuredCompletion<T>(
 
   const response = await groq.chat.completions.create({
     model: resolvedModel,
-    // @ts-expect-error groq-sdk types lag behind the API
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: systemPrompt },
@@ -111,7 +110,8 @@ export async function transcribeWithGroq(
     response_format: "text",
   });
 
-  return typeof transcription === "string"
-    ? transcription.trim()
-    : (transcription as { text: string }).text?.trim() ?? "";
+  const text = typeof transcription === "string"
+    ? transcription
+    : (transcription as { text?: string }).text ?? "";
+  return text.trim();
 }
