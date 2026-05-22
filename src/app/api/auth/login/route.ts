@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+const DEMO_TEAM_EMAIL = "team@quanta.vc";
+const DEMO_SCOUT_EMAIL = "amit@scout.quanta.vc";
+
 // Map Supabase raw error messages → friendly user-facing messages
 function friendlyAuthError(message: string | undefined): string {
   if (!message) return "Something went wrong. Please try again.";
@@ -19,9 +22,41 @@ function friendlyAuthError(message: string | undefined): string {
     return "This account has been disabled. Contact the Quanta team.";
   if (m.includes("network") || m.includes("fetch"))
     return "Connection error. Check your internet and try again.";
+  if (m.includes("invalid api key") || m.includes("api key"))
+    return "Supabase is misconfigured. Use the demo account or update the Supabase environment keys.";
 
   // Catch-all: return the original but capitalised
   return message.charAt(0).toUpperCase() + message.slice(1);
+}
+
+function isValidSupabasePublicKey(value: string | undefined): value is string {
+  if (!value || value.startsWith("TODO_")) return false;
+  if (value.startsWith("sb_publishable_")) return true;
+  return value.split(".").length === 3;
+}
+
+function createDemoLoginResponse(role: "quanta" | "scout") {
+  const response = NextResponse.json({
+    role,
+    user_id: null,
+    email: role === "quanta" ? DEMO_TEAM_EMAIL : DEMO_SCOUT_EMAIL,
+    display_name: role === "quanta" ? "Quanta Team" : "Amit Sharma",
+    scout_id: role === "scout" ? "11111111-1111-1111-1111-111111111111" : null,
+    redirect: role === "scout" ? "/scout" : "/inbox",
+    is_demo: true,
+  });
+
+  const maxAge = 8 * 60 * 60;
+  response.cookies.set("quanta_demo_role", role, { maxAge, path: "/" });
+
+  if (role === "scout") {
+    response.cookies.set("quanta_scout_id", "11111111-1111-1111-1111-111111111111", {
+      maxAge,
+      path: "/",
+    });
+  }
+
+  return response;
 }
 
 export async function POST(req: NextRequest) {
@@ -36,19 +71,33 @@ export async function POST(req: NextRequest) {
   if (!email?.trim())    return NextResponse.json({ error: "Email is required." }, { status: 400 });
   if (!password?.trim()) return NextResponse.json({ error: "Password is required." }, { status: 400 });
 
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Demo accounts must work even when Supabase is not configured on Vercel.
+  if (normalizedEmail === DEMO_TEAM_EMAIL) {
+    return createDemoLoginResponse("quanta");
+  }
+
+  if (normalizedEmail === DEMO_SCOUT_EMAIL) {
+    return createDemoLoginResponse("scout");
+  }
+
   // 2. Check env vars are present (catches Vercel missing-var deploys)
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.error("[login] Supabase env vars not set");
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !isValidSupabasePublicKey(supabaseAnonKey)) {
+    console.error("[login] Supabase env vars missing or invalid");
     return NextResponse.json(
-      { error: "Service configuration error. Contact the Quanta team." },
+      { error: "Supabase is misconfigured. Use the demo account or update the Supabase environment keys." },
       { status: 503 }
     );
   }
 
   const cookieStore = cookies();
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
@@ -62,7 +111,7 @@ export async function POST(req: NextRequest) {
 
   // 3. Sign in
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
+    email: normalizedEmail,
     password,
   });
 

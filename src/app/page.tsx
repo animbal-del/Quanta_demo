@@ -23,6 +23,9 @@ const ROLES = {
   },
 } as const;
 
+const DEMO_TEAM_EMAIL = "team@quanta.vc";
+const DEMO_SCOUT_EMAIL = "amit@scout.quanta.vc";
+
 export default function LoginPage() {
   const router = useRouter();
   const [role, setRole] = useState<Role>("team");
@@ -47,17 +50,41 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (normalizedEmail === DEMO_TEAM_EMAIL || normalizedEmail === DEMO_SCOUT_EMAIL) {
+        const demoRole = normalizedEmail === DEMO_SCOUT_EMAIL ? "scout" : "team";
+
+        if (demoRole !== role) {
+          setError(
+            demoRole === "scout"
+              ? "This is a Scout demo account. Please select the Scout option."
+              : "This is a Quanta Team demo account. Please select the Quanta Team option."
+          );
+          return;
+        }
+
+        const demoRes = await fetch(`/api/auth/demo?role=${demoRole}`, { method: "POST" });
+        if (!demoRes.ok) {
+          setError("Could not start demo mode. Try again.");
+          return;
+        }
+
+        router.push(active.redirect);
+        return;
+      }
+
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
       let data: Record<string, string>;
       try {
         data = await res.json();
       } catch {
-        setError("Unexpected response from the server. Try again.");
+        setError("The login service returned an invalid response. Try the demo account or redeploy the latest build.");
         return;
       }
 
@@ -197,6 +224,9 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="mb-2 text-center text-xs text-gray-400">
+                Demo password: <span className="font-medium text-gray-600">Password</span>
+              </p>
               <button onClick={handleDemoLogin} disabled={loading}
                 className="w-full h-9 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                 Explore demo without an account →
