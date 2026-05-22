@@ -30,6 +30,17 @@ Return ONLY the formatted note. No preamble, no quotes.`,
 Fix filler words, grammar, and run-on sentences. Keep all facts, names, and numbers exactly as stated.
 Keep the conversational tone — do not make it sound formal.
 Return ONLY the cleaned text. No preamble, no quotes.`,
+
+  rating: `You write a concise investment rationale from a scout's voice note about a startup.
+The scout is explaining why they rated this startup the way they did.
+Transform their raw thoughts into a structured, professional rationale.
+Rules:
+- Keep specific evidence, numbers, and observations from what they said
+- Structure: what's compelling first, then risks or unknowns
+- Remove filler words and rambling — keep only substance
+- 3-5 sentences maximum
+- Write in first person ("I think...", "The founders...")
+Return ONLY the rationale text. No preamble, no quotes.`,
 };
 
 export async function POST(req: NextRequest) {

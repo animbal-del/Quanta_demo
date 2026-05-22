@@ -259,7 +259,16 @@ export default function AddStartupPage() {
   const [docBanner, setDocBanner] = useState("");
   const [investmentRating, setInvestmentRating] = useState(0);
   const [ratingReason, setRatingReason] = useState("");
-  const [anythingElse, setAnythingElse] = useState("");
+  const [ratingRaw, setRatingRaw] = useState("");
+  const [ratingPolished, setRatingPolished] = useState("");
+  const [showRatingVersions, setShowRatingVersions] = useState(false);
+  const [ratingRecording, setRatingRecording] = useState(false);
+  const [ratingProcessing, setRatingProcessing] = useState(false);
+  const [ratingTimeLeft, setRatingTimeLeft] = useState(120);
+  const ratingMrRef = useRef<MediaRecorder | null>(null);
+  const ratingChunksRef = useRef<Blob[]>([]);
+  const ratingStreamRef = useRef<MediaStream | null>(null);
+  const ratingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [navigating, setNavigating] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -435,6 +444,45 @@ export default function AddStartupPage() {
     } finally { setSavingDraft(false); }
   }
 
+  // ── Rating voice recorder ──────────────────────────────────────────────────
+  async function startRatingRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      ratingStreamRef.current = stream; ratingChunksRef.current = [];
+      const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+      const mr = new MediaRecorder(stream, { mimeType: mime });
+      ratingMrRef.current = mr;
+      mr.ondataavailable = (e) => { if (e.data.size > 0) ratingChunksRef.current.push(e.data); };
+      mr.onstop = () => { ratingStreamRef.current?.getTracks().forEach((t) => t.stop()); processRatingRecording(new Blob(ratingChunksRef.current, { type: mime })); };
+      mr.start(1000); setRatingRecording(true); setRatingTimeLeft(120);
+      ratingTimerRef.current = setInterval(() => {
+        setRatingTimeLeft((t) => { if (t <= 1) { stopRatingRecording(); return 0; } return t - 1; });
+      }, 1000);
+    } catch { setError("Microphone access denied."); }
+  }
+
+  function stopRatingRecording() {
+    if (ratingTimerRef.current) clearInterval(ratingTimerRef.current);
+    ratingMrRef.current?.stop(); setRatingRecording(false);
+  }
+
+  async function processRatingRecording(blob: Blob) {
+    setRatingProcessing(true);
+    try {
+      const fd = new FormData();
+      fd.append("audio", blob, "rating.webm");
+      fd.append("context", "rating"); // uses the investment rationale polish prompt
+      const res = await fetch("/api/transcribe", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.transcript?.trim()) { setError("No speech detected. Try again."); return; }
+      setRatingRaw(data.transcript);
+      setRatingPolished(data.polished ?? data.transcript);
+      setRatingReason(data.polished ?? data.transcript);
+      setShowRatingVersions(data.transcript !== data.polished);
+    } catch (e) { setError(`Transcription failed: ${e instanceof Error ? e.message : e}`);
+    } finally { setRatingProcessing(false); }
+  }
+
   async function handleContinue() {
     setError("");
     if (step === 1) {
@@ -511,7 +559,7 @@ export default function AddStartupPage() {
         answers: [
           { question: "Investment Rating (1-4)", answer_text: String(investmentRating), answer_type: "text" },
           { question: "Rating Reason", answer_text: ratingReason || null, answer_type: ratingReason ? "text" : "skipped" },
-          { question: "Anything else valuable", answer_text: anythingElse || null, answer_type: anythingElse ? "text" : "skipped" },
+          ...(ratingRaw ? [{ question: "Rating Voice Transcript", answer_text: ratingRaw, answer_type: "voice" }] : []),
         ],
         scout_id: getScoutId(),
       });
@@ -741,9 +789,16 @@ export default function AddStartupPage() {
         {/* ── Step 4: Assessment ── */}
         {step === 4 && !processing && (
           <section className="space-y-5">
-            <div><h2 className="text-lg font-semibold text-gray-950 mb-1">Your assessment</h2><p className="text-sm text-gray-400">Rate this opportunity and share your personal take.</p></div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-950 mb-1">Your assessment</h2>
+              <p className="text-sm text-gray-400">Rate this opportunity and explain your reasoning.</p>
+            </div>
+
+            {/* Rating buttons */}
             <div className="border border-gray-200 rounded-xl p-4">
-              <p className="text-sm font-semibold text-gray-950 mb-3">Investment rating <span className="text-red-500">*</span></p>
+              <p className="text-sm font-semibold text-gray-950 mb-3">
+                Investment rating <span className="text-red-500">*</span>
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {RATING_OPTIONS.map((opt) => (
                   <button key={opt.value} onClick={() => setInvestmentRating(opt.value)}
@@ -754,17 +809,74 @@ export default function AddStartupPage() {
                   </button>
                 ))}
               </div>
-              <div className="mt-3">
-                <p className="text-xs text-gray-500 mb-1.5">Why this rating?</p>
-                <textarea value={ratingReason} onChange={(e) => setRatingReason(e.target.value)} placeholder="What makes this compelling or risky?"
-                  className="w-full h-24 resize-none rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-gray-400" />
-              </div>
             </div>
-            <div className="border border-gray-200 rounded-xl p-4">
-              <p className="text-sm font-semibold text-gray-950 mb-1">Anything else?</p>
-              <p className="text-xs text-gray-400 mb-3">Context, relationships, urgency — anything Quanta should know.</p>
-              <textarea value={anythingElse} onChange={(e) => setAnythingElse(e.target.value)} placeholder="I know the founder personally from…"
-                className="w-full h-24 resize-none rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-gray-400" />
+
+            {/* Rating reason — voice + AI writeup */}
+            <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-950">Why this rating?</p>
+                <p className="text-xs text-gray-400">Voice or type</p>
+              </div>
+
+              {/* Voice recorder */}
+              <div className="flex items-center gap-3">
+                {ratingProcessing ? (
+                  <div className="flex items-center gap-2 text-sm text-indigo-600">
+                    <Loader2 size={14} className="animate-spin" />
+                    Transcribing &amp; writing rationale…
+                  </div>
+                ) : ratingRecording ? (
+                  <>
+                    <button onClick={stopRatingRecording}
+                      className="flex items-center gap-2 h-8 px-3 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors">
+                      <StopCircle size={12} /> Stop
+                    </button>
+                    <span className={`text-sm font-mono font-semibold tabular-nums ${ratingTimeLeft < 30 ? "text-red-500" : "text-gray-600"}`}>
+                      {fmtTime(ratingTimeLeft)}
+                    </span>
+                    <span className="text-xs text-red-500 animate-pulse">● Recording</span>
+                  </>
+                ) : (
+                  <button onClick={startRatingRecording}
+                    className="flex items-center gap-2 h-8 px-3 bg-gray-950 hover:bg-gray-800 text-white text-xs font-medium rounded-lg transition-colors">
+                    <Mic size={13} />
+                    {ratingRaw ? "Re-record" : "Record rationale"}
+                  </button>
+                )}
+              </div>
+
+              {/* Show AI polished vs raw if both exist */}
+              {showRatingVersions && ratingPolished && ratingRaw && (
+                <div className="space-y-2">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-medium text-emerald-700 flex items-center gap-1">
+                        <CheckCircle2 size={10} /> AI investment rationale
+                      </span>
+                      <button onClick={() => { setRatingReason(ratingPolished); setShowRatingVersions(false); }}
+                        className="text-xs text-emerald-700 font-semibold hover:underline">Use this</button>
+                    </div>
+                    <p className="text-xs text-emerald-900 leading-relaxed">{ratingPolished}</p>
+                  </div>
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 opacity-60">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-gray-400">Raw transcript</span>
+                      <button onClick={() => { setRatingReason(ratingRaw); setShowRatingVersions(false); }}
+                        className="text-xs text-gray-400 hover:underline">Use this</button>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{ratingRaw}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Editable textarea — pre-filled from voice or type manually */}
+              <textarea
+                value={ratingReason}
+                onChange={(e) => { setRatingReason(e.target.value); setShowRatingVersions(false); }}
+                placeholder="What makes this compelling or concerning? Specific evidence, founder impressions, market timing…"
+                rows={4}
+                className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-gray-400 transition-colors"
+              />
             </div>
           </section>
         )}
