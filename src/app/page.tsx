@@ -37,27 +37,54 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) { setError("Enter your email and password."); return; }
-    setError(""); setLoading(true);
+    setError("");
+
+    // Client-side validation before hitting the API
+    if (!email.trim()) { setError("Please enter your email address."); return; }
+    if (!password.trim()) { setError("Please enter your password."); return; }
+    if (!email.includes("@")) { setError("That doesn't look like a valid email address."); return; }
+
+    setLoading(true);
 
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
-      const data = await res.json();
 
-      if (!res.ok) { setError(data.error ?? "Incorrect email or password."); return; }
+      let data: Record<string, string>;
+      try {
+        data = await res.json();
+      } catch {
+        setError("Unexpected response from the server. Try again.");
+        return;
+      }
 
-      // Store scout_id for the scout portal if needed
+      if (!res.ok) {
+        // Show the friendly message from the API
+        setError(data.error ?? "Login failed. Check your credentials and try again.");
+        return;
+      }
+
+      // Warn if role doesn't match selected portal
+      if (data.role === "scout" && role === "team") {
+        setError("This account is a Scout account. Please select the Scout option.");
+        return;
+      }
+      if (data.role === "quanta" && role === "scout") {
+        setError("This account is a Team account. Please select the Quanta Team option.");
+        return;
+      }
+
       if (data.scout_id && typeof window !== "undefined") {
         localStorage.setItem("quanta_scout_id", data.scout_id);
       }
 
       router.push(data.redirect ?? active.redirect);
-    } catch {
-      setError("Something went wrong. Try again.");
+    } catch (err) {
+      console.error("[login] network error:", err);
+      setError("Network error — check your internet connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -65,10 +92,13 @@ export default function LoginPage() {
 
   async function handleDemoLogin() {
     setLoading(true);
-    // Set demo cookie via API then redirect
-    await fetch(`/api/auth/demo?role=${role}`, { method: "POST" });
-    router.push(active.redirect);
-    setLoading(false);
+    try {
+      await fetch(`/api/auth/demo?role=${role}`, { method: "POST" });
+      router.push(active.redirect);
+    } catch {
+      setError("Could not start demo mode. Try again.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -151,9 +181,10 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <p className="text-xs text-red-600 flex items-center gap-1.5">
-                  <AlertCircle size={12} />{error}
-                </p>
+                <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 flex items-start gap-2">
+                  <AlertCircle size={13} className="text-red-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-red-700 leading-relaxed">{error}</p>
+                </div>
               )}
 
               <button type="submit" disabled={loading}

@@ -8,15 +8,22 @@ interface CompleteSignupRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as CompleteSignupRequest;
-
-  if (!body.token || !body.password) {
-    return NextResponse.json({ error: "token and password are required" }, { status: 400 });
+  let body: CompleteSignupRequest;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  if (body.password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
-  }
+  // Validate inputs
+  if (!body.token?.trim())
+    return NextResponse.json({ error: "Invite token is missing. Use the link from your email." }, { status: 400 });
+  if (!body.password)
+    return NextResponse.json({ error: "Password is required." }, { status: 400 });
+  if (body.password.length < 8)
+    return NextResponse.json({ error: "Password must be at least 8 characters long." }, { status: 400 });
+  if (/^\s+$/.test(body.password))
+    return NextResponse.json({ error: "Password cannot be only spaces." }, { status: 400 });
 
   const db = getSupabaseAdmin();
 
@@ -28,41 +35,70 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (inviteError || !invite) {
-    return NextResponse.json({ error: "Invalid invite link" }, { status: 400 });
+    return NextResponse.json(
+      { error: "This invite link is invalid. Ask the Quanta team to send you a new one." },
+      { status: 400 }
+    );
   }
 
-  if (invite.status !== "pending") {
-    return NextResponse.json({ error: "This invite has already been used" }, { status: 400 });
+  if (invite.status === "accepted") {
+    return NextResponse.json(
+      { error: "This invite has already been used. Try signing in instead, or ask for a new invite." },
+      { status: 400 }
+    );
   }
 
-  if (new Date(invite.expires_at) < new Date()) {
-    return NextResponse.json({ error: "This invite link has expired" }, { status: 400 });
+  if (invite.status === "expired" || new Date(invite.expires_at) < new Date()) {
+    return NextResponse.json(
+      { error: "This invite link has expired (links are valid for 7 days). Ask the Quanta team to resend it." },
+      { status: 400 }
+    );
+  }
+
+  // Check if a Supabase Auth user already exists for this email
+  const { data: existingUsers } = await db.auth.admin.listUsers();
+  const alreadyExists = existingUsers?.users?.some((u) => u.email === invite.email);
+  if (alreadyExists) {
+    return NextResponse.json(
+      { error: "An account for this email already exists. Try signing in, or contact the Quanta team." },
+      { status: 409 }
+    );
   }
 
   // Create Supabase Auth user
   const { data: authUser, error: authError } = await db.auth.admin.createUser({
     email: invite.email,
     password: body.password,
-    phone: body.phone,
-    email_confirm: true, // auto-confirm since they clicked the invite link
+    phone: body.phone || undefined,
+    email_confirm: true,
     user_metadata: { scout_id: invite.scout_id },
   });
 
   if (authError || !authUser.user) {
-    return NextResponse.json({ error: authError?.message ?? "Failed to create account" }, { status: 500 });
+    const msg = authError?.message ?? "";
+    let friendly = "Failed to create your account. Please try again.";
+    if (msg.includes("already registered") || msg.includes("already exists"))
+      friendly = "An account with this email already exists. Try signing in.";
+    else if (msg.includes("password"))
+      friendly = "Password doesn't meet requirements. Use at least 8 characters.";
+    return NextResponse.json({ error: friendly }, { status: 500 });
   }
 
-  // Set user role
-  await db.from("user_roles").insert({
+  // Set scout role
+  const { error: roleError } = await db.from("user_roles").insert({
     user_id: authUser.user.id,
     role: "scout",
   });
+  if (roleError) {
+    console.error("[complete-signup] Failed to set role:", roleError.message);
+    // Don't block — user can still log in and we can fix role manually
+  }
 
-  // Link Supabase user to scout record
+  // Link auth user to scout record
   await db.from("scouts").update({
     supabase_user_id: authUser.user.id,
     invite_status: "active",
-    phone: body.phone,
+    phone: body.phone || null,
   }).eq("id", invite.scout_id);
 
   // Mark invite as accepted
@@ -71,12 +107,14 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, email: invite.email });
 }
 
-// GET — validate token before showing the form
+// GET — validate token before rendering the form
 export async function GET(req: NextRequest) {
   const token = new URL(req.url).searchParams.get("token");
 
-  if (!token) {
-    return NextResponse.json({ valid: false, error: "No token provided" }, { status: 400 });
+  if (!token?.trim()) {
+    return NextResponse.json(
+      { valid: false, error: "No invite token found in the link. Use the full link from your email." }
+    );
   }
 
   const db = getSupabaseAdmin();
@@ -88,15 +126,24 @@ export async function GET(req: NextRequest) {
     .maybeSingle();
 
   if (!invite) {
-    return NextResponse.json({ valid: false, error: "Invalid invite link" });
+    return NextResponse.json({
+      valid: false,
+      error: "This invite link is not recognised. It may have been deleted. Ask for a new invite."
+    });
   }
 
-  if (invite.status !== "pending") {
-    return NextResponse.json({ valid: false, error: "This invite has already been used" });
+  if (invite.status === "accepted") {
+    return NextResponse.json({
+      valid: false,
+      error: "This invite has already been used. Try signing in, or ask the Quanta team for a new invite."
+    });
   }
 
-  if (new Date(invite.expires_at) < new Date()) {
-    return NextResponse.json({ valid: false, error: "This invite link has expired" });
+  if (invite.status === "expired" || new Date(invite.expires_at) < new Date()) {
+    return NextResponse.json({
+      valid: false,
+      error: "This invite link expired. Invite links are valid for 7 days. Ask the Quanta team to send a new one."
+    });
   }
 
   const scout = Array.isArray(invite.scouts) ? invite.scouts[0] : invite.scouts;
