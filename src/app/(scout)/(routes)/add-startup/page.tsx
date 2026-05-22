@@ -563,21 +563,29 @@ export default function AddStartupPage() {
     if (!uploadedFile) return false;
     setProcessing(true);
     try {
-      const presignRes = await fetch(
-        `/api/upload/presign?bucket=deal-files&filename=${encodeURIComponent(uploadedFile.name)}&deal_id=${id}`
-      );
-      if (!presignRes.ok) throw new Error("Could not get upload URL. Check your connection.");
-      const { signed_url, storage_url } = await presignRes.json();
-      if (!signed_url) throw new Error("Upload URL missing. Try again.");
+      // Upload via server-side API (avoids presigned URL / MIME type issues)
+      const formData = new FormData();
+      formData.append("file", uploadedFile, uploadedFile.name);
+      formData.append("deal_id", id);
+      formData.append("bucket", "deal-files");
 
-      const uploadRes = await fetch(signed_url, {
-        method: "PUT", body: uploadedFile, headers: { "Content-Type": uploadedFile.type },
-      });
-      if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status}). Try a smaller file.`);
+      const uploadRes = await fetch("/api/upload/file", { method: "POST", body: formData });
+      const uploadData = await uploadRes.json();
 
+      if (!uploadRes.ok) {
+        throw new Error(uploadData.error ?? `Upload failed (${uploadRes.status})`);
+      }
+
+      const { storage_url } = uploadData;
+
+      // Run AI enrichment on the uploaded file
       const { extraction: ext } = await post(`/api/startup/${id}/file`, {
-        storage_url, file_name: uploadedFile.name, file_type: uploadedFile.type, scout_id: getScoutId(),
+        storage_url,
+        file_name: uploadedFile.name,
+        file_type: uploadedFile.type || "application/octet-stream",
+        scout_id: getScoutId(),
       });
+
       setExtraction(ext);
       setReviewFields({
         startup_name: ext.startup_name ?? "",

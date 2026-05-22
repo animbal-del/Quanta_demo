@@ -215,16 +215,20 @@ export default function StartupDetailPage() {
           </button>
           <label className="flex flex-col items-center gap-1.5 border border-gray-100 rounded-xl p-3 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
             <Upload size={15} className="text-gray-400" />Upload Doc
-            <input type="file" accept=".pdf,.pptx,.docx,image/*" className="hidden"
+            <input type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*" className="hidden"
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file || !deal) return;
-                const pr = await fetch(`/api/upload/presign?bucket=deal-files&filename=${encodeURIComponent(file.name)}&deal_id=${deal.id}`);
-                const { signed_url, storage_url } = await pr.json();
-                await fetch(signed_url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
+                // Use server-side upload (avoids presigned URL MIME type issues)
+                const formData = new FormData();
+                formData.append("file", file, file.name);
+                formData.append("deal_id", deal.id);
+                const uploadRes = await fetch("/api/upload/file", { method: "POST", body: formData });
+                const uploadData = await uploadRes.json();
+                if (!uploadRes.ok) { alert(uploadData.error ?? "Upload failed"); return; }
                 await fetch(`/api/startup/${deal.id}/file`, {
                   method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ storage_url, file_name: file.name, file_type: file.type }),
+                  body: JSON.stringify({ storage_url: uploadData.storage_url, file_name: file.name, file_type: file.type }),
                 });
                 alert(`${file.name} uploaded successfully.`);
               }} />
