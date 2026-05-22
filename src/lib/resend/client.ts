@@ -54,7 +54,18 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
   }
   const { Resend } = await import("resend");
   const resend = new Resend(RESEND_API_KEY);
-  const result = await resend.emails.send({ from: FROM_EMAIL, to: params.to, subject: params.subject, html: params.html });
+  const result = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: params.to,
+    subject: params.subject,
+    html: params.html,
+  });
+  if (result.error) {
+    const msg = `Resend error: ${result.error.message} (name: ${result.error.name})`;
+    console.error(`[Resend] Failed to send to ${params.to}: ${msg}`);
+    throw new Error(msg);
+  }
+  console.log(`[Resend] Sent to ${params.to} — id: ${result.data?.id}`);
   return { id: result.data?.id ?? null, simulated: false };
 }
 

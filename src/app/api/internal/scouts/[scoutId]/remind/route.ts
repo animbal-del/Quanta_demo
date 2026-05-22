@@ -74,7 +74,13 @@ export async function POST(_req: NextRequest, { params }: { params: { scoutId: s
 </body>
 </html>`;
 
-  const result = await sendEmail({ to: scout.email, subject, html });
+  let result: { id: string | null; simulated: boolean };
+  try {
+    result = await sendEmail({ to: scout.email, subject, html });
+  } catch (err) {
+    console.error("[remind] Resend failed:", err);
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 
   // Log to email_correspondence
   await db.from("email_correspondence").insert({
@@ -93,7 +99,7 @@ export async function POST(_req: NextRequest, { params }: { params: { scoutId: s
     simulated: result.simulated,
     to: scout.email,
     message: result.simulated
-      ? `Email simulated (set RESEND_API_KEY to send for real)`
+      ? `Email simulated (RESEND_API_KEY not set)`
       : `Email sent to ${scout.email}`,
   });
 }
