@@ -102,6 +102,26 @@ export async function runPostSubmissionPipeline(dealId: string): Promise<Pipelin
   if (briefResult.status === "fulfilled") {
     brief = briefResult.value;
     steps.push({ step: "internal_brief", status: "success" });
+
+    // Seed missing_info_tasks from the brief's open questions (so queue is never empty)
+    if (brief.open_questions?.length > 0) {
+      try {
+        const { data: existingTasks } = await db
+          .from("missing_info_tasks")
+          .select("info_needed")
+          .eq("deal_id", dealId);
+        const existing = new Set((existingTasks ?? []).map((t: { info_needed: string }) => t.info_needed.toLowerCase()));
+        const newTasks = brief.open_questions
+          .filter((q: string) => !existing.has(q.toLowerCase()))
+          .map((q: string) => ({ deal_id: dealId, info_needed: q, status: "pending" }));
+        if (newTasks.length > 0) {
+          await db.from("missing_info_tasks").insert(newTasks);
+          steps.push({ step: "seed_tasks", status: "success", detail: `${newTasks.length} tasks created from brief` });
+        }
+      } catch (e) {
+        console.error(`[Pipeline] Task seeding failed for ${dealId}:`, e);
+      }
+    }
   } else {
     steps.push({ step: "internal_brief", status: "failed", detail: String(briefResult.reason) });
     console.error(`[Pipeline] Brief generation failed for ${dealId}:`, briefResult.reason);

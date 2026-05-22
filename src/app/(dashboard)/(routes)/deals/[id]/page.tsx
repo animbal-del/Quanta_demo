@@ -343,6 +343,9 @@ export default function DealDetailPage() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisCached, setAnalysisCached] = useState(false);
 
+  // Brief — auto-generates on load if missing
+  const [briefLoading, setBriefLoading] = useState(false);
+
   // Interaction tab — compose area (no modal)
   const [composeText, setComposeText] = useState("");
   const [rewrittenMsg, setRewrittenMsg] = useState("");
@@ -364,7 +367,22 @@ export default function DealDetailPage() {
   useEffect(() => {
     fetch(`/api/internal/deals/${dealId}`)
       .then((r) => r.ok ? r.json() : Promise.reject())
-      .then((d: Deal) => { setDeal(d); setPriority(d.priority); setTasks(d.missing_info_tasks); })
+      .then((d: Deal) => {
+        setDeal(d);
+        setPriority(d.priority);
+        setTasks(d.missing_info_tasks);
+        // Auto-generate brief if not yet available
+        if (!d.brief) {
+          setBriefLoading(true);
+          fetch(`/api/internal/deals/${dealId}/brief`, { method: "POST" })
+            .then((r) => r.json())
+            .then((res) => {
+              if (res.brief) setDeal((prev) => prev ? { ...prev, brief: res.brief } : prev);
+            })
+            .catch((e) => console.error("[brief] Auto-generation failed:", e))
+            .finally(() => setBriefLoading(false));
+        }
+      })
       .catch(() => router.push("/deals"))
       .finally(() => setLoading(false));
   }, [dealId, router]);
@@ -530,9 +548,50 @@ export default function DealDetailPage() {
           <div className="col-span-2 space-y-4">
 
             {/* AI Brief */}
-            {deal.brief ? (
+            {briefLoading ? (
               <div className="bg-white border border-gray-100 rounded-xl p-5">
-                <h2 className="text-sm font-semibold text-gray-950 mb-3">AI Brief</h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <Loader2 size={13} className="animate-spin text-gray-400" />
+                  <p className="text-sm font-semibold text-gray-950">AI Brief</p>
+                  <span className="text-xs text-gray-400">Generating…</span>
+                </div>
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-3 bg-gray-100 rounded w-full" />
+                  <div className="h-3 bg-gray-100 rounded w-4/5" />
+                  <div className="grid grid-cols-2 gap-4 mt-2">
+                    <div className="space-y-2">
+                      <div className="h-2 bg-gray-100 rounded w-20" />
+                      <div className="h-2 bg-gray-100 rounded w-full" />
+                      <div className="h-2 bg-gray-100 rounded w-3/4" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-2 bg-gray-100 rounded w-24" />
+                      <div className="h-2 bg-gray-100 rounded w-full" />
+                      <div className="h-2 bg-gray-100 rounded w-2/3" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : deal.brief ? (
+              <div className="bg-white border border-gray-100 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-gray-950">AI Brief</h2>
+                  <button
+                    onClick={async () => {
+                      setBriefLoading(true);
+                      try {
+                        const res = await fetch(`/api/internal/deals/${deal.id}/brief`, { method: "POST" });
+                        const data = await res.json();
+                        if (data.brief) setDeal((prev) => prev ? { ...prev, brief: data.brief } : prev);
+                      } finally {
+                        setBriefLoading(false);
+                      }
+                    }}
+                    className="text-xs text-gray-400 hover:text-gray-700 flex items-center gap-1"
+                  >
+                    <RefreshCw size={10} /> Regenerate
+                  </button>
+                </div>
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">What it does</p>
@@ -572,29 +631,22 @@ export default function DealDetailPage() {
               </div>
             ) : (
               <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-6 text-center space-y-3">
-                <p className="text-sm text-gray-400">No AI brief yet.</p>
+                <p className="text-sm text-gray-500">Brief generation failed.</p>
                 <button
                   onClick={async () => {
-                    setAnalysisLoading(true);
+                    setBriefLoading(true);
                     try {
-                      // Generate signals + brief via the analyze endpoint (reuses same AI)
-                      await fetch(`/api/internal/deals/${deal.id}/analyze`, { method: "POST" });
-                      // Reload deal to get the brief
-                      const r = await fetch(`/api/internal/deals/${deal.id}`);
-                      const d = await r.json();
-                      setDeal(d);
+                      const res = await fetch(`/api/internal/deals/${deal.id}/brief`, { method: "POST" });
+                      const data = await res.json();
+                      if (data.brief) setDeal((prev) => prev ? { ...prev, brief: data.brief } : prev);
                     } finally {
-                      setAnalysisLoading(false);
+                      setBriefLoading(false);
                     }
                   }}
-                  disabled={analysisLoading}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-gray-950 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-gray-950 text-white rounded-lg hover:bg-gray-800"
                 >
-                  {analysisLoading
-                    ? <><Loader2 size={11} className="animate-spin" /> Generating…</>
-                    : <><Sparkles size={11} /> Generate AI Brief</>}
+                  <Sparkles size={11} /> Retry
                 </button>
-                <p className="text-xs text-gray-300">This runs Groq analysis on the deal data</p>
               </div>
             )}
 

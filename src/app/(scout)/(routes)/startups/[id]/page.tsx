@@ -450,6 +450,29 @@ export default function StartupDetailPage() {
 
       {tab === "interaction" && (
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+          {/* Missing info banner — shown above chat so scout always knows what's outstanding */}
+          {pendingTasks.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-1">
+              <p className="text-xs font-bold text-amber-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <AlertCircle size={11} /> Still needed from you
+              </p>
+              <div className="space-y-1.5">
+                {pendingTasks.map((t) => (
+                  <div key={t.id} className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                      <p className="text-xs text-amber-900">{t.info_needed}</p>
+                    </div>
+                    {t.expected_date && (
+                      <p className="text-[10px] text-amber-600 shrink-0">by {t.expected_date}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-amber-500 mt-2">Share these in the chat below or upload a document above.</p>
+            </div>
+          )}
+
           {deal.partner_questions.filter(q => q.status === "sent").length > 0 && (
             <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 mb-3">
               <p className="text-xs font-bold text-indigo-700 uppercase tracking-wide mb-1.5 flex items-center gap-1.5"><MessageCircle size={11} /> Quanta needs a response</p>
