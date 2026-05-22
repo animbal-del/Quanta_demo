@@ -409,6 +409,23 @@ export default function DealDetailPage() {
       })
       .catch(() => router.push("/deals"))
       .finally(() => setLoading(false));
+
+    // Re-sync messages when tab becomes visible again
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        fetch(`/api/internal/deals/${dealId}`)
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => {
+            if (d?.id) {
+              setDeal(d);
+              setTasks(d.missing_info_tasks ?? []);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [dealId, router]);
 
   useEffect(() => {

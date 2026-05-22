@@ -164,6 +164,18 @@ export default function StartupDetailPage() {
 
   useEffect(() => {
     fetch(`/api/internal/deals/${id}`).then((r) => r.json()).then(setDeal).finally(() => setLoading(false));
+
+    // Re-fetch messages whenever the tab becomes visible again (back-navigation, tab switch)
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        fetch(`/api/internal/deals/${id}`)
+          .then((r) => r.json())
+          .then((fresh) => { if (fresh?.id) setDeal(fresh); })
+          .catch(() => {});
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [id]);
 
   useEffect(() => {

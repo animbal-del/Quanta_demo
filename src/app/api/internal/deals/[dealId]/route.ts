@@ -41,5 +41,10 @@ export async function GET(
     partner_questions: pqRes.data ?? [],
     deal_answers: answersRes.data ?? [],
     scout_notes: scoutNotesRes.data ?? [],
+  }, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Pragma": "no-cache",
+    },
   });
 }
