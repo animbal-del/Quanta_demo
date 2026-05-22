@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, LogOut, User, Mail, ShieldCheck } from "lucide-react";
 
 interface Session {
-  role: string | null; is_demo: boolean;
+  role: string | null; 
   email: string | null; display_name: string; user_id: string | null;
 }
 
@@ -49,7 +49,7 @@ export default function TeamProfilePage() {
             <div className="flex items-center gap-1.5 mt-1">
               <ShieldCheck size={12} className="text-emerald-400" />
               <span className="text-white/60 text-xs capitalize">{session?.role ?? "quanta"}</span>
-              {session?.is_demo && <span className="text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">Demo</span>}
+              
             </div>
           </div>
         </div>
@@ -76,14 +76,6 @@ export default function TeamProfilePage() {
             </div>
           </div>
 
-          {session?.is_demo && (
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <p className="text-xs text-amber-800 font-medium">Demo mode active</p>
-              <p className="text-xs text-amber-700 mt-0.5">
-                You&apos;re exploring without a real account. Sign in with credentials for a full session.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Actions */}

@@ -9,7 +9,7 @@ import {
 import Link from "next/link";
 
 interface ScoutSession {
-  role: string | null; is_demo: boolean;
+  role: string | null; 
   email: string | null; display_name: string; scout_id: string | null;
   scout: {
     id: string; full_name: string; email: string | null; focus_areas: string[];
@@ -109,7 +109,7 @@ export default function ScoutProfilePage() {
             <div className="flex items-center gap-1.5 mt-1">
               <Zap size={11} className="text-white/40" />
               <span className="text-white/50 text-xs">Scout · {scout?.preferred_channel ?? "Web"}</span>
-              {session?.is_demo && <span className="text-xs bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full">Demo</span>}
+              
             </div>
           </div>
         </div>
@@ -126,9 +126,7 @@ export default function ScoutProfilePage() {
           </div>
           <div className="flex items-center gap-3">
             <Phone size={14} className="text-gray-400 shrink-0" />
-            <p className="text-sm text-gray-500">
-              {session?.is_demo ? "Phone not set (demo)" : "Managed via Supabase Auth"}
-            </p>
+            <p className="text-sm text-gray-500">Managed via Supabase Auth</p>
           </div>
         </div>
 
@@ -136,7 +134,7 @@ export default function ScoutProfilePage() {
         <div className="bg-white border border-gray-100 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Focus Areas</p>
-            <button onClick={saveFocusAreas} disabled={saving || session?.is_demo}
+            <button onClick={saveFocusAreas} disabled={saving}
               className={`text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ${
                 saved ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40"
               }`}>
@@ -147,16 +145,15 @@ export default function ScoutProfilePage() {
             {FOCUS_OPTIONS.map((area) => {
               const active = focusAreas.includes(area);
               return (
-                <button key={area} onClick={() => !session?.is_demo && toggleFocus(area)}
+                <button key={area} onClick={() => toggleFocus(area)}
                   className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                     active ? "bg-gray-950 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  } ${session?.is_demo ? "cursor-default" : ""}`}>
+                  }`}>
                   {area}
                 </button>
               );
             })}
           </div>
-          {session?.is_demo && <p className="text-xs text-gray-400 mt-3">Sign in with a real account to edit focus areas.</p>}
         </div>
 
         {/* Activity stats */}
@@ -178,22 +175,10 @@ export default function ScoutProfilePage() {
           </div>
         )}
 
-        {/* Demo notice or logout */}
-        {session?.is_demo ? (
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-            <p className="text-sm font-medium text-amber-800 mb-1">Demo mode</p>
-            <p className="text-xs text-amber-700 mb-3">You&apos;re exploring without a real account. Scouts are invited by the Quanta team.</p>
-            <button onClick={logout}
-              className="w-full h-9 bg-gray-950 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-colors">
-              Exit demo
-            </button>
-          </div>
-        ) : (
-          <button onClick={logout} disabled={loggingOut}
-            className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 hover:border-red-200 disabled:opacity-50 transition-all">
-            {loggingOut ? <Loader2 size={14} className="animate-spin" /> : <><LogOut size={14} /> Sign out</>}
-          </button>
-        )}
+        <button onClick={logout} disabled={loggingOut}
+          className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 hover:border-red-200 disabled:opacity-50 transition-all">
+          {loggingOut ? <Loader2 size={14} className="animate-spin" /> : <><LogOut size={14} /> Sign out</>}
+        </button>
       </div>
     </main>
   );

@@ -23,9 +23,6 @@ const ROLES = {
   },
 } as const;
 
-const DEMO_TEAM_EMAIL = "team@quanta.vc";
-const DEMO_SCOUT_EMAIL = "amit@scout.quanta.vc";
-
 export default function LoginPage() {
   const router = useRouter();
   const [role, setRole] = useState<Role>("team");
@@ -41,66 +38,30 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-
-    // Client-side validation before hitting the API
     if (!email.trim()) { setError("Please enter your email address."); return; }
     if (!password.trim()) { setError("Please enter your password."); return; }
     if (!email.includes("@")) { setError("That doesn't look like a valid email address."); return; }
 
     setLoading(true);
-
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      if (normalizedEmail === DEMO_TEAM_EMAIL || normalizedEmail === DEMO_SCOUT_EMAIL) {
-        const demoRole = normalizedEmail === DEMO_SCOUT_EMAIL ? "scout" : "team";
-
-        if (demoRole !== role) {
-          setError(
-            demoRole === "scout"
-              ? "This is a Scout demo account. Please select the Scout option."
-              : "This is a Quanta Team demo account. Please select the Quanta Team option."
-          );
-          return;
-        }
-
-        const demoRes = await fetch(`/api/auth/demo?role=${demoRole}`, { method: "POST" });
-        if (!demoRes.ok) {
-          setError("Could not start demo mode. Try again.");
-          return;
-        }
-
-        router.push(active.redirect);
-        return;
-      }
-
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail, password, role }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
-
-      let data: Record<string, string>;
-      try {
-        data = await res.json();
-      } catch {
-        setError("The login service returned an invalid response. Try the demo account or redeploy the latest build.");
-        return;
-      }
+      const data = await res.json().catch(() => ({})) as Record<string, string>;
 
       if (!res.ok) {
-        // Show the friendly message from the API
         setError(data.error ?? "Login failed. Check your credentials and try again.");
         return;
       }
 
-      // Warn if role doesn't match selected portal
       if (data.role === "scout" && role === "team") {
-        setError("This account is a Scout account. Please select the Scout option.");
+        setError("This is a Scout account. Please select the Scout option above.");
         return;
       }
-      if (data.role === "quanta" && role === "scout") {
-        setError("This account is a Team account. Please select the Quanta Team option.");
+      if ((data.role === "quanta" || data.role === "admin") && role === "scout") {
+        setError("This is a Team account. Please select the Quanta Team option above.");
         return;
       }
 
@@ -109,21 +70,9 @@ export default function LoginPage() {
       }
 
       router.push(data.redirect ?? active.redirect);
-    } catch (err) {
-      console.error("[login] network error:", err);
+    } catch {
       setError("Network error — check your internet connection and try again.");
     } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDemoLogin() {
-    setLoading(true);
-    try {
-      await fetch(`/api/auth/demo?role=${role}`, { method: "POST" });
-      router.push(active.redirect);
-    } catch {
-      setError("Could not start demo mode. Try again.");
       setLoading(false);
     }
   }
@@ -131,8 +80,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-white flex flex-col">
       <div className="max-w-5xl mx-auto w-full px-5 py-6 flex flex-col min-h-screen">
-        {/* Logo */}
-        <header className="flex items-center justify-between">
+        <header>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gray-950 flex items-center justify-center">
               <Zap size={15} className="text-white" />
@@ -142,7 +90,6 @@ export default function LoginPage() {
         </header>
 
         <section className="flex-1 grid items-center gap-10 py-10 lg:grid-cols-[1fr_360px]">
-          {/* Left: role cards */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
               AI-native venture scout intelligence
@@ -153,17 +100,12 @@ export default function LoginPage() {
             <p className="text-gray-500 text-base leading-7 mb-8 max-w-md">
               Scouts submit leads through a lightweight portal. Quanta gets an AI-powered deal inbox with signals, briefs, and follow-ups.
             </p>
-
             <div className="grid grid-cols-2 gap-3 max-w-md">
               {(["team", "scout"] as Role[]).map((r) => {
-                const cfg = ROLES[r];
-                const RIcon = cfg.icon;
-                const selected = role === r;
+                const cfg = ROLES[r]; const RIcon = cfg.icon; const selected = role === r;
                 return (
                   <button key={r} onClick={() => { setRole(r); setEmail(""); setError(""); }}
-                    className={`rounded-xl border p-4 text-left transition-all ${
-                      selected ? "border-gray-950 bg-gray-950 text-white" : "border-gray-200 hover:border-gray-300"
-                    }`}>
+                    className={`rounded-xl border p-4 text-left transition-all ${selected ? "border-gray-950 bg-gray-950 text-white" : "border-gray-200 hover:border-gray-300"}`}>
                     <RIcon size={18} className={`mb-3 ${selected ? "text-white" : "text-gray-400"}`} />
                     <p className={`text-sm font-semibold ${selected ? "text-white" : "text-gray-900"}`}>{cfg.label}</p>
                     <p className={`text-xs mt-0.5 ${selected ? "text-white/60" : "text-gray-400"}`}>{cfg.sublabel}</p>
@@ -173,7 +115,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Right: login form */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
@@ -192,13 +133,11 @@ export default function LoginPage() {
                   placeholder={role === "team" ? "team@quanta.vc" : "your@email.com"}
                   className="w-full h-10 border border-gray-200 rounded-lg px-3 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
               </div>
-
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
                 <div className="relative">
                   <input type={showPw ? "text" : "password"} value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
                     className="w-full h-10 border border-gray-200 rounded-lg px-3 pr-9 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
                   <button type="button" onClick={() => setShowPw(!showPw)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -206,32 +145,19 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-
               {error && (
                 <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 flex items-start gap-2">
                   <AlertCircle size={13} className="text-red-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-red-700 leading-relaxed">{error}</p>
                 </div>
               )}
-
               <button type="submit" disabled={loading}
                 className="w-full h-10 rounded-lg bg-gray-950 hover:bg-gray-800 text-white text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50 transition-colors">
                 {loading
                   ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <><ArrowRight size={14} /> Sign in</>
-                }
+                  : <><ArrowRight size={14} /> Sign in</>}
               </button>
             </form>
-
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="mb-2 text-center text-xs text-gray-400">
-                Demo password: <span className="font-medium text-gray-600">Password</span>
-              </p>
-              <button onClick={handleDemoLogin} disabled={loading}
-                className="w-full h-9 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                Explore demo without an account →
-              </button>
-            </div>
           </div>
         </section>
       </div>

@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const SCOUT_ROUTES  = ["/scout", "/add-startup", "/startups", "/submissions", "/chat", "/account", "/dashboard"];
-const TEAM_ROUTES   = ["/inbox", "/deals", "/scouts", "/queue", "/analytics", "/profile"];
+const SCOUT_ROUTES = ["/scout", "/add-startup", "/startups", "/submissions", "/chat", "/account", "/dashboard"];
+const TEAM_ROUTES  = ["/inbox", "/deals", "/scouts", "/queue", "/analytics", "/profile"];
 const PUBLIC_ROUTES = ["/", "/complete-signup", "/auth"];
 
 function isScoutRoute(p: string)  { return SCOUT_ROUTES.some((r) => p === r || p.startsWith(r + "/")); }
@@ -12,7 +12,6 @@ function isPublicRoute(p: string) { return PUBLIC_ROUTES.some((r) => p === r || 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Always allow: static files, API routes, public pages
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon.ico") ||
@@ -22,28 +21,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Real Supabase session takes priority over demo cookie ───────────────────
-  // Check for a real session FIRST — if one exists, ignore the demo cookie.
-  // This prevents old demo cookies from overriding a real login.
-  const hasSupabaseSession = request.cookies.getAll()
-    .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
-
-  // ── Demo mode check (only if no real session) ────────────────────────────
-  const demoCookie = request.cookies.get("quanta_demo_role")?.value;
-
-  if (demoCookie && !hasSupabaseSession) {
-    // Demo scout trying to access team pages
-    if (demoCookie === "scout" && isTeamRoute(pathname)) {
-      return NextResponse.redirect(new URL("/scout", request.url));
-    }
-    // Demo team trying to access scout pages
-    if (demoCookie === "quanta" && isScoutRoute(pathname)) {
-      return NextResponse.redirect(new URL("/inbox", request.url));
-    }
-    return NextResponse.next();
-  }
-
-  // ── Real Supabase session check ──────────────────────────────────────────────
+  // Check Supabase session
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -55,9 +33,7 @@ export async function middleware(request: NextRequest) {
         setAll: (cookiesToSet) => {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
         },
       },
     }
@@ -66,7 +42,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    // No session, no demo cookie — redirect to login
+    // No session — redirect to login
     if (isScoutRoute(pathname) || isTeamRoute(pathname)) {
       return NextResponse.redirect(new URL("/", request.url));
     }
