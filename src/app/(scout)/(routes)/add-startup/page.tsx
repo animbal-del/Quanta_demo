@@ -393,6 +393,9 @@ export default function AddStartupPage() {
   const [ratingReason, setRatingReason] = useState("");
   const [anythingElse, setAnythingElse] = useState("");
 
+  // Step 3 — doc update notification
+  const [docUpdateBanner, setDocUpdateBanner] = useState("");
+
   // Voice pitch recording
   const [recording, setRecording] = useState(false);
   const [timeLeft, setTimeLeft] = useState(120);
@@ -547,8 +550,10 @@ export default function AddStartupPage() {
       const { storage_url } = data;
       setAttachedFiles((prev) => [...prev, { name: file.name, storage_url, file_type: file.type }]);
 
-      // Re-analyze the new document and MERGE results into existing review fields
-      // (only fill in blanks — don't overwrite things the scout already corrected)
+      // Re-analyze and UPDATE fields from the new document.
+      // New doc data takes priority — it was just uploaded for a reason.
+      // Longer/more specific values win; blank new values don't overwrite existing.
+      let enrichError = "";
       try {
         const enrichRes = await post(`/api/startup/${dealId}/file`, {
           storage_url,
@@ -557,23 +562,36 @@ export default function AddStartupPage() {
           scout_id: getScoutId(),
         });
         const ext = enrichRes.extraction;
+
         if (ext) {
+          // Helper: prefer the longer/more informative value
+          const better = (a: string, b: string | null | undefined) => {
+            const bStr = b ?? "";
+            return bStr.length > a.length ? bStr : a;
+          };
+
           setReviewFields((prev) => ({
-            startup_name:          prev.startup_name          || ext.startup_name          || "",
-            founder_name:          prev.founder_name          || ext.founder_names?.[0]    || "",
-            one_line_description:  prev.one_line_description  || ext.one_line_description  || "",
-            why_interesting:       prev.why_interesting       || ext.why_interesting       || "",
-            traction:              prev.traction              || ext.traction_mentions?.join(", ") || "",
+            startup_name:         better(prev.startup_name,         ext.startup_name),
+            founder_name:         better(prev.founder_name,         ext.founder_names?.[0]),
+            one_line_description: better(prev.one_line_description, ext.one_line_description),
+            why_interesting:      better(prev.why_interesting,      ext.why_interesting),
+            traction:             better(prev.traction,             ext.traction_mentions?.join(" · ")),
           }));
-          // Also merge into fixed question pre-fills
+
           setFixedAnswers((prev) => ({
             ...prev,
-            company:  prev.company  || ext.one_line_description || "",
-            traction: prev.traction || ext.traction_mentions?.join(", ") || "",
+            company:  better(prev.company ?? "",  ext.one_line_description),
+            traction: better(prev.traction ?? "", ext.traction_mentions?.join(" · ")),
           }));
+
+          setDocUpdateBanner(`Fields updated from ${file.name}`);
+          setTimeout(() => setDocUpdateBanner(""), 4000);
         }
-      } catch {
-        // Enrichment is best-effort — file is still attached even if AI fails
+      } catch (e) {
+        enrichError = e instanceof Error ? e.message : "Enrichment failed";
+        // Don't block — file is attached even if AI analysis fails
+        setDocUpdateBanner(`File attached but analysis failed: ${enrichError}`);
+        setTimeout(() => setDocUpdateBanner(""), 5000);
       }
     } catch (e) {
       setError(`File upload failed: ${e instanceof Error ? e.message : e}`);
@@ -1011,10 +1029,22 @@ export default function AddStartupPage() {
               )}
             </div>
 
+            {/* Doc update banner */}
+            {docUpdateBanner && (
+              <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium ${
+                docUpdateBanner.includes("failed")
+                  ? "bg-amber-50 border border-amber-200 text-amber-700"
+                  : "bg-emerald-50 border border-emerald-200 text-emerald-700"
+              }`}>
+                <CheckCircle2 size={13} className="shrink-0" />
+                {docUpdateBanner}
+              </div>
+            )}
+
             {/* Attach materials */}
             <div className="border border-gray-200 rounded-xl p-4">
               <p className="text-sm font-semibold text-gray-950 mb-1">Attach materials</p>
-              <p className="text-xs text-gray-400 mb-3">Deck, pitch, one-pager, demo — any files relevant to this startup.</p>
+              <p className="text-xs text-gray-400 mb-3">Deck, pitch, one-pager, demo — uploading a new file will update the fields above.</p>
 
               <label className={`flex items-center gap-2 border border-dashed border-gray-200 rounded-lg px-4 py-3 text-sm cursor-pointer hover:border-gray-300 transition-colors ${uploadingFile ? "opacity-50 pointer-events-none" : ""}`}>
                 {uploadingFile
