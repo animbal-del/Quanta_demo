@@ -1,9 +1,3 @@
-/**
- * POST /api/startup/:id/distribute-answers
- *
- * Takes a voice transcript and distributes answers to Q&A fields.
- * Also saves the raw transcript so Quanta team can see it.
- */
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/client";
 import { runStructuredCompletion } from "@/lib/openai/client";
@@ -15,7 +9,7 @@ import { FIXED_QUESTIONS } from "@/prompts/intake/question-generation.prompt";
 import { AI_MODELS } from "@/constants";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const { transcript, scout_id } = await req.json();
+  const { transcript, scout_id, existing_answers } = await req.json();
 
   if (!transcript?.trim()) {
     return NextResponse.json({ error: "transcript is required" }, { status: 400 });
@@ -23,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const db = getSupabaseAdmin();
 
-  // Save the raw transcript as a deal message so Quanta can see it
+  // Save raw transcript to deal_messages — visible to Quanta team
   await db.from("deal_messages").insert({
     deal_id: params.id,
     scout_id: scout_id ?? null,
@@ -33,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     body: `[Voice note] ${transcript}`,
   });
 
-  // Also save as a deal_answer with special key so it's retrievable
+  // Save timestamped transcript to deal_answers log
   await db.from("deal_answers").insert({
     deal_id: params.id,
     scout_id: scout_id ?? null,
@@ -42,14 +36,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     answer_type: "voice",
   });
 
-  // Build the question map for the AI
   const questionMap: Record<string, string> = {};
   FIXED_QUESTIONS.forEach((q) => { questionMap[q.id] = q.question; });
 
-  // Distribute to answer fields
+  // Smart merge — pass existing answers so AI applies updates + recalculates
   const distributed = await runStructuredCompletion<Record<string, string | null>>(
     TRANSCRIPT_DISTRIBUTION_SYSTEM_PROMPT,
-    buildTranscriptDistributionUserPrompt(transcript, questionMap),
+    buildTranscriptDistributionUserPrompt(transcript, questionMap, existing_answers ?? {}),
     AI_MODELS.nextQuestion
   );
 

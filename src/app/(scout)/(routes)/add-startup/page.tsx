@@ -96,25 +96,47 @@ function EditableField({ label, value, onSave, multiline = false }: {
   );
 }
 
-// ─── Simple answer textarea ───────────────────────────────────────────────────
-function AnswerField({ category, question, value, onChange, placeholder }: {
-  category: string; question: string; value: string; onChange: (v: string) => void; placeholder?: string;
+// ─── Answer field with "Don't have this yet" option ─────────────────────────
+function AnswerField({ category, question, value, onChange, placeholder, missingDate, onMissingDate }: {
+  category: string; question: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; missingDate?: string; onMissingDate?: (d: string) => void;
 }) {
+  const [showMissing, setShowMissing] = useState(!!missingDate);
+
   return (
     <div className="space-y-1.5">
-      <div>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{category}</p>
-        <p className="text-sm font-medium text-gray-800 mt-0.5">{question}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{category}</p>
+          <p className="text-sm font-medium text-gray-800 mt-0.5">{question}</p>
+        </div>
+        {onMissingDate && !showMissing && (
+          <button onClick={() => { setShowMissing(true); onChange(""); }}
+            className="text-[10px] font-medium text-gray-400 hover:text-amber-600 border border-gray-200 hover:border-amber-300 rounded-lg px-2 py-1 mt-0.5 shrink-0 transition-colors">
+            Don&apos;t have this yet
+          </button>
+        )}
       </div>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Your answer…"} rows={2}
-        className="w-full resize-none border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
+      {showMissing ? (
+        <div className="space-y-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <p className="text-xs font-medium text-amber-800">Missing info — tell the team when you&apos;ll have it:</p>
+          <input type="date" value={missingDate ?? ""} onChange={(e) => onMissingDate?.(e.target.value)}
+            className="w-full h-9 border border-amber-300 rounded-lg px-3 text-sm focus:outline-none focus:border-amber-500 bg-white" />
+          <button onClick={() => { setShowMissing(false); onMissingDate?.(""); }}
+            className="text-xs text-gray-500 hover:text-gray-700">I have an answer after all</button>
+        </div>
+      ) : (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Your answer…"} rows={2}
+          className="w-full resize-none border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-gray-400 transition-colors" />
+      )}
     </div>
   );
 }
 
 // ─── Master voice recorder (5 min) ────────────────────────────────────────────
-function MasterVoiceRecorder({ dealId, onDistributed }: {
-  dealId: string; onDistributed: (answers: Record<string, string | null>, transcript: string) => void;
+function MasterVoiceRecorder({ dealId, existingAnswers, onDistributed }: {
+  dealId: string; existingAnswers: Record<string, string>;
+  onDistributed: (answers: Record<string, string | null>, transcript: string) => void;
 }) {
   const MAX = 300;
   const [recording, setRecording] = useState(false);
@@ -162,7 +184,8 @@ function MasterVoiceRecorder({ dealId, onDistributed }: {
       setTranscripts((p) => [...p, transcript]);
       const dr = await fetch(`/api/startup/${dealId}/distribute-answers`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript, scout_id: getScoutId() }),
+        // Pass existing answers so AI applies updates + recalculates metrics
+        body: JSON.stringify({ transcript, scout_id: getScoutId(), existing_answers: existingAnswers }),
       });
       const dd = await dr.json();
       onDistributed(dd.distributed ?? {}, transcript);
@@ -226,7 +249,8 @@ export default function AddStartupPage() {
 
   const [reviewFields, setReviewFields] = useState({ startup_name: "", founder_name: "", one_line_description: "", why_interesting: "", traction: "" });
   const [fixedAnswers, setFixedAnswers] = useState<Record<string, string>>({});
-  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [linkedinUrls, setLinkedinUrls] = useState<string[]>([""]);
+  const [missingDates, setMissingDates] = useState<Record<string, string>>({}); // questionId -> date
   const [aiQuestions, setAiQuestions] = useState<string[]>([]);
   const [aiAnswers, setAiAnswers] = useState<{ question: string; text: string }[]>([]);
   const [showAiQ, setShowAiQ] = useState(false);
@@ -389,9 +413,14 @@ export default function AddStartupPage() {
   }
 
   function handleDistributed(distributed: Record<string, string | null>) {
+    // Voice AI result takes priority — it has already merged with existing context.
+    // Only skip if AI returned null (meaning the question wasn't addressed at all).
     setFixedAnswers((p) => {
       const n = { ...p };
-      Object.entries(distributed).forEach(([k, v]) => { if (v) n[k] = better(n[k] ?? "", v); });
+      Object.entries(distributed).forEach(([k, v]) => {
+        if (v && v.trim()) n[k] = v.trim();
+        // null = not addressed → keep existing answer
+      });
       return n;
     });
   }
@@ -426,12 +455,44 @@ export default function AddStartupPage() {
       setNavigating(true);
       try {
         if (dealId) {
+          const validLinkedins = linkedinUrls.filter((u) => u.trim());
           const allAnswers = [
-            ...FIXED_QUESTIONS.map((q) => ({ question: q.question, answer_text: fixedAnswers[q.id] || null, answer_type: fixedAnswers[q.id] ? "text" : "skipped" })),
-            ...(linkedinUrl ? [{ question: "Founder LinkedIn URL", answer_text: linkedinUrl, answer_type: "text" }] : []),
+            ...FIXED_QUESTIONS.map((q) => ({
+              question: q.question,
+              answer_text: missingDates[q.id]
+                ? `Missing — expected by ${missingDates[q.id]}`
+                : fixedAnswers[q.id] || null,
+              answer_type: fixedAnswers[q.id] ? "text" : "skipped",
+            })),
+            ...(validLinkedins.length > 0
+              ? [{ question: "Founder LinkedIn URLs", answer_text: validLinkedins.join(", "), answer_type: "text" }]
+              : []),
             ...aiAnswers.filter((a) => a.text).map((a) => ({ question: a.question, answer_text: a.text, answer_type: "text" })),
           ];
           await post(`/api/startup/${dealId}/answers`, { answers: allAnswers, scout_id: getScoutId() });
+
+          // Create missing_info_tasks for fields marked as "don't have yet"
+          const missingTasks = Object.entries(missingDates)
+            .filter(([, date]) => date)
+            .map(([qId, date]) => {
+              const q = FIXED_QUESTIONS.find((f) => f.id === qId);
+              const followupDate = new Date(date);
+              followupDate.setDate(followupDate.getDate() + 1);
+              return {
+                deal_id: dealId,
+                scout_id: getScoutId(),
+                info_needed: q?.question ?? qId,
+                expected_date: date,
+                followup_date: followupDate.toISOString().split("T")[0],
+                status: "pending",
+              };
+            });
+          if (missingTasks.length > 0) {
+            await fetch("/api/startup/" + dealId + "/answers", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ missing_tasks: missingTasks, scout_id: getScoutId() }),
+            }).catch(() => null);
+          }
         }
         setStep(4);
       } catch (e) { setError(`Could not save: ${e instanceof Error ? e.message : e}`);
@@ -607,30 +668,48 @@ export default function AddStartupPage() {
               {docBanner && <p className={`text-xs mt-2 flex items-center gap-1.5 font-medium ${docBanner.includes("failed") ? "text-amber-600" : "text-emerald-600"}`}><CheckCircle2 size={11} />{docBanner}</p>}
             </div>
 
-            {/* Quick review */}
-            <div className="border border-gray-200 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Quick review — tap to edit</p>
-              <EditableField label="Startup" value={reviewFields.startup_name} onSave={(v) => saveReviewEdit("startup_name", v)} />
-              <EditableField label="What it does" value={reviewFields.one_line_description} onSave={(v) => saveReviewEdit("one_line_description", v)} multiline />
-              <EditableField label="Traction" value={reviewFields.traction} onSave={(v) => saveReviewEdit("traction", v)} multiline />
-            </div>
-
             {/* Master mic */}
-            {dealId && <MasterVoiceRecorder dealId={dealId} onDistributed={handleDistributed} />}
+            {dealId && (
+              <MasterVoiceRecorder
+                dealId={dealId}
+                existingAnswers={fixedAnswers}
+                onDistributed={handleDistributed}
+              />
+            )}
 
-            {/* Structured Q&A */}
-            <div className="space-y-4">
+            {/* Structured Q&A — no quick review, answers come from doc/voice */}
+            <div className="space-y-5">
               {FIXED_QUESTIONS.map((q) => (
-                <div key={q.id} className="space-y-1.5">
-                  <AnswerField category={q.category} question={q.question}
-                    value={fixedAnswers[q.id] ?? ""} onChange={(v) => setFixedAnswers((p) => ({ ...p, [q.id]: v }))}
-                    placeholder={q.placeholder} />
+                <div key={q.id} className="space-y-2">
+                  <AnswerField
+                    category={q.category}
+                    question={q.question}
+                    value={missingDates[q.id] ? "" : (fixedAnswers[q.id] ?? "")}
+                    onChange={(v) => setFixedAnswers((p) => ({ ...p, [q.id]: v }))}
+                    placeholder={q.placeholder}
+                    missingDate={missingDates[q.id]}
+                    onMissingDate={(d) => setMissingDates((p) => ({ ...p, [q.id]: d }))}
+                  />
+                  {/* Multiple LinkedIn URLs after founders question */}
                   {q.id === "founders" && (
-                    <div>
-                      <p className="text-xs text-gray-400 mb-1">LinkedIn URL (optional)</p>
-                      <input type="url" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)}
-                        placeholder="https://linkedin.com/in/..."
-                        className="w-full h-9 border border-gray-200 rounded-lg px-3 text-sm focus:outline-none focus:border-gray-400" />
+                    <div className="space-y-2 pl-1">
+                      <p className="text-xs text-gray-400 font-medium">LinkedIn URLs</p>
+                      {linkedinUrls.map((url, i) => (
+                        <div key={i} className="flex gap-2">
+                          <input type="url" value={url}
+                            onChange={(e) => setLinkedinUrls((p) => p.map((u, j) => j === i ? e.target.value : u))}
+                            placeholder="https://linkedin.com/in/..."
+                            className="flex-1 h-9 border border-gray-200 rounded-lg px-3 text-sm focus:outline-none focus:border-gray-400" />
+                          {linkedinUrls.length > 1 && (
+                            <button onClick={() => setLinkedinUrls((p) => p.filter((_, j) => j !== i))}
+                              className="text-gray-400 hover:text-red-500 px-1"><X size={13} /></button>
+                          )}
+                        </div>
+                      ))}
+                      <button onClick={() => setLinkedinUrls((p) => [...p, ""])}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+                        + Add another LinkedIn
+                      </button>
                     </div>
                   )}
                 </div>
@@ -640,15 +719,17 @@ export default function AddStartupPage() {
             {/* Collapsible AI questions */}
             {aiQuestions.length > 0 && (
               <div>
-                <button onClick={() => setShowAiQ(!showAiQ)} className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+                <button onClick={() => setShowAiQ(!showAiQ)}
+                  className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
                   {showAiQ ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                  {showAiQ ? "Hide" : `Show ${aiQuestions.length} additional question${aiQuestions.length > 1 ? "s" : ""}`}
+                  {showAiQ ? "Hide additional questions" : `Show ${aiQuestions.length} additional question${aiQuestions.length > 1 ? "s" : ""}`}
                 </button>
                 {showAiQ && (
                   <div className="mt-3 space-y-4 pl-1 border-l-2 border-indigo-100">
                     {aiQuestions.map((q, i) => (
                       <AnswerField key={i} category="Additional" question={q}
-                        value={aiAnswers[i]?.text ?? ""} onChange={(v) => setAiAnswers((p) => p.map((a, j) => j === i ? { ...a, text: v } : a))} />
+                        value={aiAnswers[i]?.text ?? ""}
+                        onChange={(v) => setAiAnswers((p) => p.map((a, j) => j === i ? { ...a, text: v } : a))} />
                     ))}
                   </div>
                 )}
