@@ -236,7 +236,7 @@ export default function StartupDetailPage() {
     setRefreshing(true);
     try {
       const fresh = await fetch(`/api/internal/deals/${id}`).then((r) => r.json());
-      setDeal(fresh);
+      if (fresh?.id) setDeal(fresh);
     } catch { /* ignore */ } finally {
       setRefreshing(false);
     }
@@ -245,33 +245,23 @@ export default function StartupDetailPage() {
   async function sendReply() {
     if (!reply.trim() || !deal) return;
     setSending(true);
-    setSendError(null);
     const body = reply;
-    setReply(""); // clear optimistically
+    setReply("");
 
     try {
-      // Read scout_id from both localStorage and cookie (belt-and-suspenders)
-      const scoutId = typeof window !== "undefined"
-        ? (localStorage.getItem("quanta_scout_id") ??
-           document.cookie.split("; ").find((c) => c.startsWith("quanta_scout_id="))?.split("=")[1] ?? null)
-        : null;
-
+      const scoutId = typeof window !== "undefined" ? localStorage.getItem("quanta_scout_id") : null;
       const res = await fetch(`/api/scout/deals/${id}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body, scout_id: scoutId }),
       });
-
+      const data = await res.json();
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        const msg = err.error ?? `Server error ${res.status}`;
-        setSendError(msg);
-        setReply(body); // restore so user can retry
+        setReply(body);
+        setSendError(data.error ?? "Failed to send. Please try again.");
         return;
       }
-
-      // Update local state — the API only returns after saving both messages to DB
-      const data = await res.json();
+      setSendError(null);
       setDeal((prev) => prev ? {
         ...prev,
         messages: [
@@ -280,11 +270,9 @@ export default function StartupDetailPage() {
           { sender_type: "ai", body: data.ai_reply ?? "Got it.", created_at: new Date().toISOString() },
         ],
       } : prev);
-
-    } catch (e) {
-      console.error("[reply] Network error:", e);
-      setSendError("Network error — check your connection and try again.");
+    } catch {
       setReply(body);
+      setSendError("Network error. Please check your connection.");
     } finally {
       setSending(false);
     }
