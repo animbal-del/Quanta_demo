@@ -219,18 +219,20 @@ export function buildInviteEmail(params: {
 export function buildWeeklyCheckinEmail(params: {
   scoutName: string;
   scoutId: string;
+  personalizedMessage?: string;
 }): { subject: string; html: string } {
   const yesUrl  = `${APP_URL}/api/email/respond?scout=${params.scoutId}&response=yes_have_startup`;
   const noUrl   = `${APP_URL}/api/email/respond?scout=${params.scoutId}&response=nothing_this_week`;
   const addUrl  = `${APP_URL}/add-startup`;
   const firstName = params.scoutName.split(" ")[0];
+  const bodyText = params.personalizedMessage
+    ?? "Anything interesting cross your radar this week? Could be a startup, a founder you met, or just a problem you keep hearing about. Even a rough signal is useful.";
 
   const content = `
     <p style="margin:0 0 4px;font-size:12px;font-weight:500;color:#71717a;text-transform:uppercase;letter-spacing:0.06em;">Weekly check-in</p>
     <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#0a0a0a;letter-spacing:-0.02em;">Hey ${firstName} 👋</h1>
     <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.7;">
-      Anything interesting cross your radar this week? Could be a startup, a founder you met,
-      or just a problem you keep hearing about. Even a rough signal is useful.
+      ${bodyText}
     </p>
 
     <!-- CTA buttons -->

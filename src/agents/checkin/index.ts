@@ -52,12 +52,18 @@ export async function runCheckinForScout(scoutId: string): Promise<{ message: st
     ? `${lastDeal.startup_name ?? "Unknown"}: ${lastDeal.one_line_description ?? ""}`
     : null;
 
-  // Generate personalised message with Groq
-  const message = await runTextCompletion(
-    WEEKLY_CHECKIN_SYSTEM_PROMPT,
-    buildWeeklyCheckinUserPrompt(scout.full_name, daysSinceActive, lastSubmissionSummary, pendingItems),
-    AI_MODELS.checkin
-  );
+  // Generate personalised message with Groq — fall back to a variant if AI is unavailable
+  let message: string;
+  try {
+    message = await runTextCompletion(
+      WEEKLY_CHECKIN_SYSTEM_PROMPT,
+      buildWeeklyCheckinUserPrompt(scout.full_name, daysSinceActive, lastSubmissionSummary, pendingItems),
+      AI_MODELS.checkin
+    );
+  } catch (err) {
+    console.error("[checkin] AI generation failed, using fallback:", err);
+    message = selectCheckinVariant(daysSinceActive);
+  }
 
   // ── Send via Resend email (yes/no CTA) ──────────────────────────────────────
   let emailSent = false;
@@ -66,6 +72,7 @@ export async function runCheckinForScout(scoutId: string): Promise<{ message: st
       const { subject, html } = buildWeeklyCheckinEmail({
         scoutName: scout.full_name,
         scoutId: scout.id,
+        personalizedMessage: message,
       });
       const result = await sendEmail({ to: scout.email, subject, html });
       emailSent = !result.simulated;
