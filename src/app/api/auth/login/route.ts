@@ -166,7 +166,8 @@ export async function POST(req: NextRequest) {
     displayName = scout.full_name;
   }
 
-  return NextResponse.json({
+  // Clear any leftover demo cookies so real session takes priority
+  const response = NextResponse.json({
     role,
     user_id: data.user.id,
     email: data.user.email,
@@ -174,4 +175,7 @@ export async function POST(req: NextRequest) {
     scout_id: scoutId,
     redirect: role === "scout" ? "/scout" : "/inbox",
   });
+  response.cookies.delete("quanta_demo_role");
+  response.cookies.delete("quanta_scout_id");
+  return response;
 }

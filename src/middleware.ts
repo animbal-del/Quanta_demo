@@ -22,10 +22,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Demo mode check ─────────────────────────────────────────────────────────
+  // ── Real Supabase session takes priority over demo cookie ───────────────────
+  // Check for a real session FIRST — if one exists, ignore the demo cookie.
+  // This prevents old demo cookies from overriding a real login.
+  const hasSupabaseSession = request.cookies.getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+
+  // ── Demo mode check (only if no real session) ────────────────────────────
   const demoCookie = request.cookies.get("quanta_demo_role")?.value;
 
-  if (demoCookie) {
+  if (demoCookie && !hasSupabaseSession) {
     // Demo scout trying to access team pages
     if (demoCookie === "scout" && isTeamRoute(pathname)) {
       return NextResponse.redirect(new URL("/scout", request.url));
