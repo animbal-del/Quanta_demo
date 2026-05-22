@@ -398,6 +398,9 @@ export default function AddStartupPage() {
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
+  // Button loading (step 1 initDeal and step 4/5 save)
+  const [navigating, setNavigating] = useState(false);
+
   // Editable review fields (Step 3)
   const [reviewFields, setReviewFields] = useState({
     startup_name: "", founder_name: "", one_line_description: "", why_interesting: "", traction: "",
@@ -501,8 +504,11 @@ export default function AddStartupPage() {
     } catch { /* questions optional */ }
   }
 
-  async function processAudio(id: string) {
-    if (!recordedBlob) return;
+  // All process functions return true on success, false on failure.
+  // handleContinue only advances step when true is returned.
+
+  async function processAudio(id: string): Promise<boolean> {
+    if (!recordedBlob) return false;
     setProcessing(true);
     const formData = new FormData();
     formData.append("audio", recordedBlob, "pitch.webm");
@@ -510,7 +516,7 @@ export default function AddStartupPage() {
     try {
       const res = await fetch(`/api/startup/${id}/audio`, { method: "POST", body: formData });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error ?? `Server error ${res.status}`);
       setExtraction(data.extraction);
       const ext = data.extraction as Extraction;
       setReviewFields({
@@ -521,14 +527,16 @@ export default function AddStartupPage() {
         traction: ext.traction_mentions?.join(", ") ?? "",
       });
       await fetchQuestions(id, data.extraction);
+      return true;
     } catch (e) {
-      setError(`Processing failed: ${e}`);
+      setError(`Transcription failed: ${e instanceof Error ? e.message : e}. Check your internet and try again.`);
+      return false;
     } finally {
       setProcessing(false);
     }
   }
 
-  async function processManual(id: string) {
+  async function processManual(id: string): Promise<boolean> {
     setProcessing(true);
     try {
       const { extraction: ext } = await post(`/api/startup/${id}/manual`, { ...manual, scout_id: getScoutId() });
@@ -541,21 +549,34 @@ export default function AddStartupPage() {
         traction: ext.traction_mentions?.join(", ") ?? manual.traction,
       });
       await fetchQuestions(id, ext);
+      return true;
     } catch (e) {
-      setError(`Save failed: ${e}`);
+      setError(`Could not save your entry: ${e instanceof Error ? e.message : e}`);
+      return false;
     } finally {
       setProcessing(false);
     }
   }
 
-  async function processDocument(id: string) {
-    if (!uploadedFile) return;
+  async function processDocument(id: string): Promise<boolean> {
+    if (!uploadedFile) return false;
     setProcessing(true);
     try {
-      const presignRes = await fetch(`/api/upload/presign?bucket=deal-files&filename=${encodeURIComponent(uploadedFile.name)}&deal_id=${id}`);
+      const presignRes = await fetch(
+        `/api/upload/presign?bucket=deal-files&filename=${encodeURIComponent(uploadedFile.name)}&deal_id=${id}`
+      );
+      if (!presignRes.ok) throw new Error("Could not get upload URL. Check your connection.");
       const { signed_url, storage_url } = await presignRes.json();
-      await fetch(signed_url, { method: "PUT", body: uploadedFile, headers: { "Content-Type": uploadedFile.type } });
-      const { extraction: ext } = await post(`/api/startup/${id}/file`, { storage_url, file_name: uploadedFile.name, file_type: uploadedFile.type, scout_id: getScoutId() });
+      if (!signed_url) throw new Error("Upload URL missing. Try again.");
+
+      const uploadRes = await fetch(signed_url, {
+        method: "PUT", body: uploadedFile, headers: { "Content-Type": uploadedFile.type },
+      });
+      if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status}). Try a smaller file.`);
+
+      const { extraction: ext } = await post(`/api/startup/${id}/file`, {
+        storage_url, file_name: uploadedFile.name, file_type: uploadedFile.type, scout_id: getScoutId(),
+      });
       setExtraction(ext);
       setReviewFields({
         startup_name: ext.startup_name ?? "",
@@ -565,8 +586,10 @@ export default function AddStartupPage() {
         traction: ext.traction_mentions?.join(", ") ?? "",
       });
       await fetchQuestions(id, ext);
+      return true;
     } catch (e) {
-      setError(`Upload failed: ${e}`);
+      setError(`Upload failed: ${e instanceof Error ? e.message : e}`);
+      return false;
     } finally {
       setProcessing(false);
     }
@@ -602,46 +625,96 @@ export default function AddStartupPage() {
   // ── Navigation ─────────────────────────────────────────────────────────────
   async function handleContinue() {
     setError("");
+
+    // Step 1 → 2: create draft deal (show loading on button)
     if (step === 1) {
-      const id = await initDeal();
-      setStep(2);
-      return;
-    }
-    if (step === 2) {
-      const id = dealId!;
-      if (mode === "voice") {
-        if (!recordedBlob) { setError("Please record your pitch first."); return; }
-        await processAudio(id);
-      } else if (mode === "manual") {
-        if (!manual.startup_name && !manual.what_it_does) { setError("Please fill in at least the startup name or description."); return; }
-        await processManual(id);
-      } else {
-        if (!uploadedFile) { setError("Please upload a file first."); return; }
-        await processDocument(id);
+      setNavigating(true);
+      try {
+        await initDeal();
+        setStep(2);
+      } catch (e) {
+        setError(`Could not start submission: ${e instanceof Error ? e.message : e}. Check your connection.`);
+      } finally {
+        setNavigating(false);
       }
-      setStep(3);
       return;
     }
-    if (step === 4 && dealId && answers.length > 0) {
-      await post(`/api/startup/${dealId}/answers`, {
-        answers: answers.map((a) => ({ question: a.question, answer_text: a.text, answer_type: a.text ? "text" : "skipped" })),
-        scout_id: getScoutId(),
-      });
+
+    // Step 2 → 3: process submission
+    if (step === 2) {
+      if (!dealId) { setError("Something went wrong. Go back and try again."); return; }
+      let success = false;
+      if (mode === "voice") {
+        if (!recordedBlob) { setError("Please record your pitch first, then click Continue."); return; }
+        success = await processAudio(dealId);
+      } else if (mode === "manual") {
+        if (!manual.startup_name && !manual.what_it_does) {
+          setError("Please fill in at least the startup name or what they're building.");
+          return;
+        }
+        success = await processManual(dealId);
+      } else {
+        if (!uploadedFile) { setError("Please select a file to upload first."); return; }
+        success = await processDocument(dealId);
+      }
+      // Only advance on success — stay on step 2 with error if failed
+      if (success) setStep(3);
+      return;
     }
-    if (step === 5 && dealId && noteText.trim()) {
-      await post(`/api/startup/${dealId}/notes`, { note_text: noteText, note_type: "text", scout_id: getScoutId() });
+
+    // Step 3 → 4: nothing to save, just advance
+    if (step === 3) {
+      setStep(4);
+      return;
     }
+
+    // Step 4 → 5: save answers
+    if (step === 4) {
+      setNavigating(true);
+      try {
+        if (dealId && answers.length > 0) {
+          await post(`/api/startup/${dealId}/answers`, {
+            answers: answers.map((a) => ({
+              question: a.question,
+              answer_text: a.text || null,
+              answer_type: a.text ? "text" : "skipped",
+            })),
+            scout_id: getScoutId(),
+          });
+        }
+        setStep(5);
+      } catch (e) {
+        setError(`Could not save answers: ${e instanceof Error ? e.message : e}`);
+      } finally {
+        setNavigating(false);
+      }
+      return;
+    }
+
+    // Step 5 → submit: save notes then submit
+    // (Submit button handles step 5 directly via handleSubmit)
     setStep((s) => Math.min(6, s + 1) as Step);
   }
 
   async function handleSubmit() {
-    if (!dealId) return;
-    setProcessing(true);
+    if (!dealId) {
+      setError("Nothing to submit — please go back and fill in your startup details first.");
+      return;
+    }
+    setNavigating(true);
     try {
+      // Save note first if there is one
+      if (noteText.trim()) {
+        await post(`/api/startup/${dealId}/notes`, {
+          note_text: noteText, note_type: "text", scout_id: getScoutId(),
+        });
+      }
       await post(`/api/startup/${dealId}/submit`, {});
       setStep(6);
+    } catch (e) {
+      setError(`Submission failed: ${e instanceof Error ? e.message : e}. Please try again.`);
     } finally {
-      setProcessing(false);
+      setNavigating(false);
     }
   }
 
@@ -913,19 +986,25 @@ export default function AddStartupPage() {
         {step < 6 && !processing && (
           <div className="mt-6 space-y-2">
             <div className="flex gap-3">
-              <button onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={step === 1}
+              <button
+                onClick={() => { setError(""); setStep((s) => Math.max(1, s - 1) as Step); }}
+                disabled={step === 1 || navigating}
                 className="h-11 w-20 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-colors shrink-0">
                 Back
               </button>
               {step === 5 ? (
-                <button onClick={handleSubmit}
-                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
-                  <Send size={14} /> Submit to Quanta
+                <button onClick={handleSubmit} disabled={navigating}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-60 transition-colors">
+                  {navigating
+                    ? <><Loader2 size={14} className="animate-spin" /> Submitting…</>
+                    : <><Send size={14} /> Submit to Quanta</>}
                 </button>
               ) : (
-                <button onClick={handleContinue}
-                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 transition-colors">
-                  Continue <ArrowRight size={14} />
+                <button onClick={handleContinue} disabled={navigating}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-gray-950 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-60 transition-colors">
+                  {navigating
+                    ? <><Loader2 size={14} className="animate-spin" /> Please wait…</>
+                    : <>Continue <ArrowRight size={14} /></>}
                 </button>
               )}
             </div>
