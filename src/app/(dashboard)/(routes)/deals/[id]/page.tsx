@@ -88,16 +88,27 @@ function relTime(iso: string) {
 }
 
 // ─── File download helper ──────────────────────────────────────────────────────
-async function downloadFile(storageUrl: string, fileName: string) {
+async function downloadFile(storageUrl: string, fileName: string): Promise<string | null> {
+  // Placeholder / demo files — no real file exists
+  if (!storageUrl || storageUrl.startsWith("placeholder://") || storageUrl === "#") {
+    return "This file is a demo placeholder — no real file was uploaded.";
+  }
+
   const res = await fetch(`/api/storage/signed-url?url=${encodeURIComponent(storageUrl)}`);
-  const { signed_url } = await res.json();
+  const data = await res.json();
+
+  if (!res.ok || !data.signed_url) {
+    return data.error ?? "Could not generate download link.";
+  }
+
   const a = document.createElement("a");
-  a.href = signed_url;
+  a.href = data.signed_url;
   a.download = fileName;
   a.target = "_blank";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  return null; // null = success
 }
 
 function downloadText(text: string, filename: string) {
@@ -114,18 +125,29 @@ function AudioPlayer({ storageUrl, label }: { storageUrl: string; label: string 
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Detect placeholder before even trying
+  const isPlaceholder = !storageUrl || storageUrl.startsWith("placeholder://") || storageUrl === "#";
+
   async function loadAndPlay() {
+    if (isPlaceholder) { setAudioError("Demo placeholder — no real audio file."); return; }
     if (signedUrl) {
       if (playing) { audioRef.current?.pause(); setPlaying(false); }
       else { audioRef.current?.play(); setPlaying(true); }
       return;
     }
     setLoading(true);
+    setAudioError(null);
     const res = await fetch(`/api/storage/signed-url?url=${encodeURIComponent(storageUrl)}`);
-    const { signed_url } = await res.json();
-    setSignedUrl(signed_url);
+    const data = await res.json();
+    if (!res.ok || !data.signed_url) {
+      setAudioError(data.error ?? "Could not load audio.");
+      setLoading(false);
+      return;
+    }
+    setSignedUrl(data.signed_url);
     setLoading(false);
   }
 
@@ -137,19 +159,30 @@ function AudioPlayer({ storageUrl, label }: { storageUrl: string; label: string 
     }
   }, [signedUrl]);
 
+  if (audioError) return (
+    <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+      <Volume2 size={12} className="text-amber-400" />
+      <span className="text-xs text-amber-700 flex-1">{label}</span>
+      <span className="text-xs text-amber-500">{audioError}</span>
+    </div>
+  );
+
   return (
     <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
       <div className="w-7 h-7 rounded-full bg-gray-950 flex items-center justify-center shrink-0">
         <Volume2 size={12} className="text-white" />
       </div>
       <span className="text-xs text-gray-700 flex-1 truncate">{label}</span>
-      <button onClick={loadAndPlay} disabled={loading}
-        className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800">
+      <button onClick={loadAndPlay} disabled={loading || isPlaceholder}
+        className={`flex items-center gap-1 text-xs font-medium ${isPlaceholder ? "text-gray-300 cursor-not-allowed" : "text-indigo-600 hover:text-indigo-800"}`}>
         {loading ? <Loader2 size={12} className="animate-spin" /> : playing ? <Pause size={12} /> : <Play size={12} />}
         {playing ? "Pause" : "Play"}
       </button>
       {signedUrl && (
-        <button onClick={() => downloadFile(storageUrl, label)} className="text-gray-400 hover:text-gray-600 p-1">
+        <button onClick={async () => {
+          const err = await downloadFile(storageUrl, label);
+          if (err) alert(err);
+        }} className="text-gray-400 hover:text-gray-600 p-1" title="Download">
           <Download size={11} />
         </button>
       )}
@@ -697,7 +730,10 @@ export default function DealDetailPage() {
                         {f.summary && <p className="text-[10px] text-gray-400 mt-0.5">{f.summary}</p>}
                       </div>
                       {f.storage_url && (
-                        <button onClick={() => downloadFile(f.storage_url!, f.file_name ?? "file")}
+                        <button onClick={async () => {
+                          const err = await downloadFile(f.storage_url!, f.file_name ?? "file");
+                          if (err) alert(err);
+                        }}
                           className="text-gray-300 hover:text-indigo-600 shrink-0 p-1 transition-colors">
                           <Download size={12} />
                         </button>
