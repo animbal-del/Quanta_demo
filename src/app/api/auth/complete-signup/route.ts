@@ -56,7 +56,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Check if a Supabase Auth user already exists for this email
-  const { data: existingUsers } = await db.auth.admin.listUsers();
+  const { data: existingUsers, error: listUsersError } = await db.auth.admin.listUsers();
+  if (listUsersError) {
+    const msg = listUsersError.message.toLowerCase();
+    const friendly = msg.includes("api key") || msg.includes("requested path")
+      ? "Supabase Auth is misconfigured. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel."
+      : "Could not verify existing accounts. Please try again.";
+    return NextResponse.json({ error: friendly }, { status: 500 });
+  }
+
   const alreadyExists = existingUsers?.users?.some((u) => u.email === invite.email);
   if (alreadyExists) {
     return NextResponse.json(
@@ -81,6 +89,8 @@ export async function POST(req: NextRequest) {
       friendly = "An account with this email already exists. Try signing in.";
     else if (msg.includes("password"))
       friendly = "Password doesn't meet requirements. Use at least 8 characters.";
+    else if (msg.toLowerCase().includes("api key") || msg.toLowerCase().includes("requested path"))
+      friendly = "Supabase Auth is misconfigured. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel.";
     return NextResponse.json({ error: friendly }, { status: 500 });
   }
 

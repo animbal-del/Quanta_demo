@@ -7,7 +7,18 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+
+function getAppOrigin() {
+  const configured = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  try {
+    return new URL(configured).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+}
+
+const APP_URL = getAppOrigin();
 
 function isResendConfigured() {
   return Boolean(RESEND_API_KEY && !RESEND_API_KEY.startsWith("TODO_"));
