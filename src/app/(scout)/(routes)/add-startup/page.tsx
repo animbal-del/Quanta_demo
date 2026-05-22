@@ -534,14 +534,47 @@ export default function AddStartupPage() {
   async function uploadAttachment(file: File) {
     if (!dealId) return;
     setUploadingFile(true);
+    setError("");
     try {
+      // Upload the file
       const formData = new FormData();
       formData.append("file", file, file.name);
       formData.append("deal_id", dealId);
       const res = await fetch("/api/upload/file", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload failed");
-      setAttachedFiles((prev) => [...prev, { name: file.name, storage_url: data.storage_url, file_type: file.type }]);
+
+      const { storage_url } = data;
+      setAttachedFiles((prev) => [...prev, { name: file.name, storage_url, file_type: file.type }]);
+
+      // Re-analyze the new document and MERGE results into existing review fields
+      // (only fill in blanks — don't overwrite things the scout already corrected)
+      try {
+        const enrichRes = await post(`/api/startup/${dealId}/file`, {
+          storage_url,
+          file_name: file.name,
+          file_type: file.type || "application/octet-stream",
+          scout_id: getScoutId(),
+        });
+        const ext = enrichRes.extraction;
+        if (ext) {
+          setReviewFields((prev) => ({
+            startup_name:          prev.startup_name          || ext.startup_name          || "",
+            founder_name:          prev.founder_name          || ext.founder_names?.[0]    || "",
+            one_line_description:  prev.one_line_description  || ext.one_line_description  || "",
+            why_interesting:       prev.why_interesting       || ext.why_interesting       || "",
+            traction:              prev.traction              || ext.traction_mentions?.join(", ") || "",
+          }));
+          // Also merge into fixed question pre-fills
+          setFixedAnswers((prev) => ({
+            ...prev,
+            company:  prev.company  || ext.one_line_description || "",
+            traction: prev.traction || ext.traction_mentions?.join(", ") || "",
+          }));
+        }
+      } catch {
+        // Enrichment is best-effort — file is still attached even if AI fails
+      }
     } catch (e) {
       setError(`File upload failed: ${e instanceof Error ? e.message : e}`);
     } finally {
@@ -608,28 +641,31 @@ export default function AddStartupPage() {
     if (!uploadedFile) return false;
     setProcessing(true);
     try {
-      // Upload via server-side API (avoids presigned URL / MIME type issues)
       const formData = new FormData();
       formData.append("file", uploadedFile, uploadedFile.name);
       formData.append("deal_id", id);
-      formData.append("bucket", "deal-files");
 
       const uploadRes = await fetch("/api/upload/file", { method: "POST", body: formData });
       const uploadData = await uploadRes.json();
-
-      if (!uploadRes.ok) {
-        throw new Error(uploadData.error ?? `Upload failed (${uploadRes.status})`);
-      }
+      if (!uploadRes.ok) throw new Error(uploadData.error ?? `Upload failed (${uploadRes.status})`);
 
       const { storage_url } = uploadData;
 
-      // Run AI enrichment on the uploaded file
-      const { extraction: ext } = await post(`/api/startup/${id}/file`, {
+      // Carry the submitted document forward so it appears in Step 3 "Attach materials"
+      setAttachedFiles([{
+        name: uploadedFile.name,
+        storage_url,
+        file_type: uploadedFile.type || "application/octet-stream",
+      }]);
+
+      // Run enrichment — now reads actual file content
+      const res = await post(`/api/startup/${id}/file`, {
         storage_url,
         file_name: uploadedFile.name,
         file_type: uploadedFile.type || "application/octet-stream",
         scout_id: getScoutId(),
       });
+      const ext = res.extraction;
 
       setExtraction(ext);
       setReviewFields({
@@ -982,12 +1018,18 @@ export default function AddStartupPage() {
 
               <label className={`flex items-center gap-2 border border-dashed border-gray-200 rounded-lg px-4 py-3 text-sm cursor-pointer hover:border-gray-300 transition-colors ${uploadingFile ? "opacity-50 pointer-events-none" : ""}`}>
                 {uploadingFile
-                  ? <><Loader2 size={14} className="animate-spin text-gray-400" /> Uploading…</>
+                  ? <><Loader2 size={14} className="animate-spin text-indigo-500" /> <span className="text-indigo-600 font-medium">Uploading &amp; analysing…</span></>
                   : <><Paperclip size={14} className="text-gray-400" /> <span className="text-gray-500">Choose file to attach</span></>
                 }
                 <input type="file" className="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/*"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAttachment(f); e.target.value = ""; }} />
               </label>
+              {uploadingFile && (
+                <p className="text-xs text-indigo-500 mt-1.5 flex items-center gap-1">
+                  <Loader2 size={10} className="animate-spin" />
+                  Reading document and updating extracted fields…
+                </p>
+              )}
 
               {attachedFiles.length > 0 && (
                 <ul className="mt-3 space-y-1.5">
