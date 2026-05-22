@@ -29,3 +29,4 @@ yarn-error.log*
 
 # Internal planning docs — not for repo
 flow.md
+.env.vercel
