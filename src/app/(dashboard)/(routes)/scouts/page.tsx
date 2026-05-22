@@ -260,11 +260,18 @@ export default function ScoutsPage() {
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        title="Send check-in"
+                        title="Send check-in reminder email"
                         onClick={async (e) => {
                           e.preventDefault();
-                          await fetch(`/api/internal/scouts/${scout.id}/checkin`, { method: "POST" });
-                          alert(`Check-in sent to ${scout.full_name}`);
+                          const res = await fetch(`/api/internal/scouts/${scout.id}/remind`, { method: "POST" });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            alert(`Failed: ${data.error ?? "Unknown error"}`);
+                          } else {
+                            alert(data.simulated
+                              ? `Simulated (no RESEND_API_KEY set) — would send to ${scout.email}`
+                              : `✅ Email sent to ${scout.email}`);
+                          }
                         }}
                         className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
                         <MessageSquare size={13} />

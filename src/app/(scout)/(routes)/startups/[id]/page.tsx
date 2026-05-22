@@ -232,11 +232,41 @@ export default function StartupDetailPage() {
 
   async function sendReply() {
     if (!reply.trim() || !deal) return;
-    setSending(true); const body = reply; setReply("");
-    const res = await fetch(`/api/scout/deals/${id}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) });
-    const data = await res.json();
-    setDeal((prev) => prev ? { ...prev, messages: [...prev.messages, { sender_type: "scout", body, created_at: new Date().toISOString() }, { sender_type: "ai", body: data.ai_reply ?? "Got it.", created_at: new Date().toISOString() }] } : prev);
-    setSending(false);
+    setSending(true);
+    const body = reply;
+    setReply(""); // clear input optimistically
+
+    try {
+      const scoutId = typeof window !== "undefined" ? localStorage.getItem("quanta_scout_id") : null;
+      const res = await fetch(`/api/scout/deals/${id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body, scout_id: scoutId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error("[reply] API error:", err);
+        setReply(body); // restore message so user can retry
+        return;
+      }
+
+      const data = await res.json();
+      // Add both messages to local state — they're also saved in DB
+      setDeal((prev) => prev ? {
+        ...prev,
+        messages: [
+          ...prev.messages,
+          { sender_type: "scout", body, created_at: new Date().toISOString() },
+          { sender_type: "ai", body: data.ai_reply ?? "Got it.", created_at: new Date().toISOString() },
+        ],
+      } : prev);
+    } catch (e) {
+      console.error("[reply] Network error:", e);
+      setReply(body); // restore message
+    } finally {
+      setSending(false);
+    }
   }
 
   if (loading) return <div className="flex items-center justify-center h-screen"><Loader2 size={20} className="animate-spin text-gray-400" /></div>;
