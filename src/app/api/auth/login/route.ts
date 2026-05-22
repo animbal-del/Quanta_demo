@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabaseAdmin } from "@/lib/supabase/client";
 
 function friendlyAuthError(message: string | undefined): string {
   if (!message) return "Something went wrong. Please try again.";
@@ -31,14 +32,21 @@ export async function POST(req: NextRequest) {
   if (!email?.trim()) return NextResponse.json({ error: "Email is required." }, { status: 400 });
   if (!password?.trim()) return NextResponse.json({ error: "Password is required." }, { status: 400 });
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return NextResponse.json({ error: "Service configuration error. Contact the Quanta team." }, { status: 503 });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("[login] Missing Supabase env vars — check Vercel environment variables");
+    return NextResponse.json(
+      { error: "Login service is not configured. Check that NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your Vercel environment variables, then redeploy." },
+      { status: 503 }
+    );
   }
 
   const cookieStore = cookies();
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
@@ -75,15 +83,40 @@ export async function POST(req: NextRequest) {
   let displayName: string = data.user.email ?? email;
 
   if (role === "scout") {
-    const { data: scout } = await supabase
+    const db = getSupabaseAdmin();
+
+    // Try by supabase_user_id first
+    let { data: scout } = await db
       .from("scouts")
-      .select("id, full_name")
+      .select("id, full_name, supabase_user_id")
       .eq("supabase_user_id", data.user.id)
-      .single();
+      .maybeSingle();
+
+    // Fallback: find by email (handles cases where supabase_user_id wasn't linked)
+    if (!scout && data.user.email) {
+      const { data: scoutByEmail } = await db
+        .from("scouts")
+        .select("id, full_name, supabase_user_id")
+        .eq("email", data.user.email.toLowerCase())
+        .maybeSingle();
+
+      if (scoutByEmail) {
+        scout = scoutByEmail;
+        // Auto-link the supabase_user_id so future logins work directly
+        await db
+          .from("scouts")
+          .update({ supabase_user_id: data.user.id, invite_status: "active" })
+          .eq("id", scoutByEmail.id);
+      }
+    }
 
     if (!scout) {
-      return NextResponse.json({ error: "Scout profile not found. Contact the Quanta team." }, { status: 404 });
+      return NextResponse.json(
+        { error: `No scout profile found for ${data.user.email}. Ask the Quanta team to invite you via /scouts → Add Scout.` },
+        { status: 404 }
+      );
     }
+
     scoutId = scout.id;
     displayName = scout.full_name;
   }
