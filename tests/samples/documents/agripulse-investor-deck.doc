@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>AgriPulse Investor Deck — May 2026</title>
+</head>
+<body>
+
+<h1>AgriPulse</h1>
+<p><strong>Series:</strong> Pre-Seed &nbsp;|&nbsp; <strong>Ask:</strong> ₹1.5 Crore (~$180,000 USD) &nbsp;|&nbsp; <strong>Date:</strong> May 2026</p>
+
+<hr />
+
+<h2>The Problem</h2>
+<p>India has 140 million smallholder farm households. 86% of them operate farms smaller than 5 acres and make irrigation decisions purely by guesswork — looking at soil colour, checking the weather on their phone, or asking a neighbour.</p>
+<p>The result: Indian farmers over-irrigate by 35–40% on average (ICAR 2024 data), wasting scarce groundwater and losing crops to root rot, fungal infections, and nutrient runoff. Conservative estimates put annual crop losses from irrigation errors at ₹22,000 crore across Maharashtra alone.</p>
+<p>Existing precision agriculture tools (Fasal, CropIn, Jivabhumi) cost ₹5,000–₹25,000 per acre annually — completely unaffordable for a farmer with 2 acres earning ₹3–4 lakh per year.</p>
+
+<hr />
+
+<h2>Our Solution</h2>
+<p><strong>AgriPulse = ₹400 soil sensor + WhatsApp chatbot in Marathi</strong></p>
+<ul>
+<li>Solar-powered LoRaWAN soil sensor: measures moisture, temperature, EC (electrical conductivity)</li>
+<li>Battery life: 18 months on solar, no charging needed</li>
+<li>Range: 2km LoRaWAN mesh — one gateway per 15–20 farms</li>
+<li>Setup: 15 minutes, no technical knowledge required</li>
+<li>Farmer receives daily WhatsApp message: <em>"Irrigate 45 minutes today. Skip tomorrow."</em></li>
+<li>Available in Marathi, Hindi, and English</li>
+<li>Works on basic 2G smartphones — no app download required</li>
+</ul>
+
+<hr />
+
+<h2>Traction (as of May 2026)</h2>
+<table border="1" cellpadding="6">
+<tr><td><strong>Active farms</strong></td><td>247</td></tr>
+<tr><td><strong>Monthly Recurring Revenue</strong></td><td>₹1,23,500 (~$1,490 USD)</td></tr>
+<tr><td><strong>Subscription price</strong></td><td>₹500/farm/month</td></tr>
+<tr><td><strong>Churn rate</strong></td><td>0.8% (2 farms churned — lease ended, not product)</td></tr>
+<tr><td><strong>MoM growth</strong></td><td>35% over last 3 months</td></tr>
+<tr><td><strong>Water savings reported</strong></td><td>38% average reduction per farm</td></tr>
+<tr><td><strong>Customer acquisition</strong></td><td>80% word-of-mouth and FPO referrals</td></tr>
+<tr><td><strong>Geographies active</strong></td><td>Nashik, Pune, Solapur districts (Maharashtra)</td></tr>
+</table>
+
+<hr />
+
+<h2>Founder Backgrounds</h2>
+
+<h3>Rahul Patil — CEO &amp; Co-Founder</h3>
+<ul>
+<li>Grew up on a 4-acre farm in Nashik district (family still farms)</li>
+<li>B.Sc Agriculture, VNMKV Parbhani (top agricultural university in Maharashtra)</li>
+<li>MBA, SPJIMR Mumbai (2021, specialisation in agribusiness)</li>
+<li>Former Agri Business Manager, HDFC Bank — 2 years managing ₹40 crore crop loan portfolio</li>
+<li>Personal motivation: father lost ₹1.2 lakh in crops to over-irrigation in 2023 monsoon</li>
+</ul>
+
+<h3>Kiran Deshmukh — CTO &amp; Co-Founder</h3>
+<ul>
+<li>B.Tech Electronics, VJTI Mumbai (top-5 engineering college in Maharashtra)</li>
+<li>Former IoT Engineer, Bosch India — 3 years building industrial sensor networks</li>
+<li>Holds 1 patent on low-power LoRaWAN sensor design (filed 2022, granted 2024)</li>
+<li>Built the AgriPulse sensor from scratch in 4 months; current unit cost ₹400, target ₹320 at scale</li>
+</ul>
+
+<hr />
+
+<h2>Business Model</h2>
+<p><strong>Hardware + SaaS:</strong></p>
+<ul>
+<li>Sensor sold at cost (₹400) or bundled free with 12-month subscription</li>
+<li>Subscription: ₹500/farm/month (~₹6,000/year)</li>
+<li>LTV at 3-year retention: ₹18,000/farm</li>
+<li>CAC: ₹320/farm (mostly WhatsApp referral programme)</li>
+<li>Gross margin on subscription: 74%</li>
+<li>Payback period: 8 months</li>
+</ul>
+
+<hr />
+
+<h2>Government Partnerships &amp; Validation</h2>
+<ul>
+<li><strong>MOU signed</strong> with Nashik District Agriculture Office for co-promotion to PM-KISAN beneficiary farms (2.1 lakh eligible farmers in Nashik alone)</li>
+<li><strong>NABARD interest:</strong> introductory call completed; NABARD looking at AgriPulse for their Rural Innovation Fund (₹50 lakh potential grant, Q3 2026)</li>
+<li><strong>FPO partnerships:</strong> active referral partnerships with 3 Farmer Producer Organisations covering 4,200 members</li>
+</ul>
+
+<hr />
+
+<h2>Use of Funds (₹1.5 Crore)</h2>
+<ul>
+<li><strong>50%</strong> — Sensor manufacturing scale-up: buy components in bulk, reduce unit cost to ₹320, produce 2,000 units</li>
+<li><strong>25%</strong> — Agronomist partnerships: hire 2 agronomists to improve crop-specific irrigation models (currently generic)</li>
+<li><strong>25%</strong> — Sales: hire 2 field sales reps for FPO channel in Pune and Solapur districts</li>
+</ul>
+
+<h2>12-Month Targets</h2>
+<ul>
+<li>1,000 active farms (4x from current 247)</li>
+<li>₹5 lakh MRR (~$6,000 USD)</li>
+<li>Expansion to 2 new districts (Sangli, Kolhapur)</li>
+<li>NABARD grant secured</li>
+</ul>
+
+<hr />
+
+<h2>Why Now</h2>
+<ul>
+<li>Groundwater crisis in Maharashtra is at a tipping point — state government mandating water-use reporting for farms above 5 acres by 2027</li>
+<li>LoRaWAN infrastructure rolling out across Maharashtra under BharatNet — reduces our gateway deployment cost by 60%</li>
+<li>Smartphone penetration among smallholder farmers hit 71% in 2025 (TRAI data)</li>
+<li>No competitor is addressing sub-5-acre farms at this price point in India</li>
+</ul>
+
+<hr />
+
+<p><strong>Contact:</strong> rahul@agripulse.io | kiran@agripulse.io | +91 98101 77342</p>
+<p><em>AgriPulse Pvt. Ltd. · Nashik, Maharashtra · CIN: U01403MH2025PTC000123</em></p>
+
+</body>
+</html>
