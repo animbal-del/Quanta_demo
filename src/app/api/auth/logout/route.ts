@@ -28,10 +28,10 @@ export async function POST() {
     console.error("[logout] Supabase sign-out failed; clearing app cookies anyway", error);
   }
 
-  // Also clear the demo cookie if set
   const response = NextResponse.json({ success: true });
-  response.cookies.delete("quanta_demo_role");
+  response.cookies.delete("quanta_role");
   response.cookies.delete("quanta_scout_id");
+  response.cookies.delete("quanta_demo_role");
   response.cookies.delete("sb-access-token");
   response.cookies.delete("sb-refresh-token");
   return response;

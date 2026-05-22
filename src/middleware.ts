@@ -21,7 +21,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check Supabase session
+  // ── Fast path: role cookie set by login API ──────────────────────────────────
+  // This is the primary routing signal. The Supabase session is still validated
+  // below, but routing decisions use this cookie to avoid DB queries per navigation.
+  const roleCookie = request.cookies.get("quanta_role")?.value;
+
+  if (roleCookie) {
+    // Session cookie exists — just enforce routing based on role
+    if (isTeamRoute(pathname) && roleCookie !== "quanta" && roleCookie !== "admin") {
+      return NextResponse.redirect(new URL("/scout", request.url));
+    }
+    if (isScoutRoute(pathname) && roleCookie !== "scout") {
+      return NextResponse.redirect(new URL("/inbox", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // ── Slow path: no role cookie — validate Supabase session + DB lookup ────────
+  // Happens on first visit after deploy, or if cookies were cleared manually.
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -42,14 +59,12 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    // No session — redirect to login
     if (isScoutRoute(pathname) || isTeamRoute(pathname)) {
       return NextResponse.redirect(new URL("/", request.url));
     }
     return response;
   }
 
-  // Session exists — enforce role-based routing
   const { data: roleData } = await supabase
     .from("user_roles")
     .select("role")
@@ -58,10 +73,19 @@ export async function middleware(request: NextRequest) {
 
   const role = roleData?.role;
 
-  // No role found — account not fully set up, send back to login
   if (!role) {
     return NextResponse.redirect(new URL("/", request.url));
   }
+
+  // Stamp the cookie so future navigations use the fast path
+  const cookieOpts = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  };
+  response.cookies.set("quanta_role", role, cookieOpts);
 
   if (isTeamRoute(pathname) && role !== "quanta" && role !== "admin") {
     return NextResponse.redirect(new URL("/scout", request.url));

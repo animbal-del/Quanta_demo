@@ -121,7 +121,6 @@ export async function POST(req: NextRequest) {
     displayName = scout.full_name;
   }
 
-  // Clear any stale demo cookies
   const response = NextResponse.json({
     role,
     user_id: data.user.id,
@@ -130,7 +129,19 @@ export async function POST(req: NextRequest) {
     scout_id: scoutId,
     redirect: role === "scout" ? "/scout" : "/inbox",
   });
+
+  // Stamp role into a dedicated cookie so middleware can route without a DB query
+  const cookieOpts = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
+  };
+  response.cookies.set("quanta_role", role, cookieOpts);
+  if (scoutId) response.cookies.set("quanta_scout_id", scoutId, cookieOpts);
+
+  // Clear stale demo cookies
   response.cookies.delete("quanta_demo_role");
-  response.cookies.delete("quanta_scout_id");
   return response;
 }
