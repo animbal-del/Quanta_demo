@@ -32,9 +32,10 @@ function getScoutId(): string | null {
 
 // ─── Processing overlay ────────────────────────────────────────────────────────
 const PROC_STEPS = [
-  { id: "u", label: "Uploading",                duration: 3000  },
-  { id: "t", label: "Transcribing with Whisper", duration: 14000 },
-  { id: "e", label: "Extracting startup signals", duration: 6000  },
+  { id: "u", label: "Uploading",                  duration: 3000  },
+  { id: "t", label: "Transcribing with Whisper",   duration: 12000 },
+  { id: "e", label: "Extracting startup signals",  duration: 5000  },
+  { id: "d", label: "Pre-filling your answers",    duration: 5000  },
 ];
 function ProcessingSteps({ active }: { active: boolean }) {
   const [cur, setCur] = useState(0);
@@ -386,7 +387,32 @@ export default function AddStartupPage() {
       const res = await fetch(`/api/startup/${id}/audio`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
-      applyExtraction(data.extraction); await fetchQuestions(id, data.extraction); return true;
+
+      // Apply structured extraction to review fields (startup name, description, founders, traction)
+      applyExtraction(data.extraction);
+
+      // Distribute the raw transcript to all Q&A answer fields — this is the prefill step
+      if (data.transcript?.trim()) {
+        try {
+          const dr = await fetch(`/api/startup/${id}/distribute-answers`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              transcript: data.transcript,
+              scout_id: getScoutId(),
+              existing_answers: {},
+            }),
+          });
+          const dd = await dr.json();
+          if (dd.distributed) handleDistributed(dd.distributed);
+        } catch (e) {
+          console.error("[voice] distribute-answers failed:", e);
+          // Non-fatal — scout can still fill answers manually
+        }
+      }
+
+      await fetchQuestions(id, data.extraction);
+      return true;
     } catch (e) { setError(`Transcription failed: ${e instanceof Error ? e.message : e}`); return false;
     } finally { setProcessing(false); }
   }
