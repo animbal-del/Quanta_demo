@@ -533,7 +533,7 @@ export default function AddStartupPage() {
           ];
           await post(`/api/startup/${dealId}/answers`, { answers: allAnswers, scout_id: getScoutId() });
 
-          // Create missing_info_tasks for fields marked as "don't have yet"
+          // Save "Don't have this yet" fields as proper missing_info_tasks
           const missingTasks = Object.entries(missingDates)
             .filter(([, date]) => date)
             .map(([qId, date]) => {
@@ -541,19 +541,24 @@ export default function AddStartupPage() {
               const followupDate = new Date(date);
               followupDate.setDate(followupDate.getDate() + 1);
               return {
-                deal_id: dealId,
-                scout_id: getScoutId(),
                 info_needed: q?.question ?? qId,
                 expected_date: date,
                 followup_date: followupDate.toISOString().split("T")[0],
-                status: "pending",
               };
             });
           if (missingTasks.length > 0) {
-            await fetch("/api/startup/" + dealId + "/answers", {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ missing_tasks: missingTasks, scout_id: getScoutId() }),
-            }).catch(() => null);
+            await post(`/api/startup/${dealId}/missing-tasks`, {
+              tasks: missingTasks,
+              scout_id: getScoutId(),
+            });
+          }
+
+          // Auto-flag missing pitch deck if no document was uploaded
+          if (attachedFiles.length === 0 && mode !== "document") {
+            await post(`/api/startup/${dealId}/missing-tasks`, {
+              tasks: [{ info_needed: "Pitch deck (PDF or PPT)", expected_date: null, followup_date: null }],
+              scout_id: getScoutId(),
+            });
           }
         }
         setStep(4);
