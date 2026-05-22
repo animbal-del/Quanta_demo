@@ -652,7 +652,7 @@ export default function DealDetailPage() {
                     <div>
                       <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Known facts</p>
                       <ul className="space-y-1">
-                        {deal.brief.known_facts.map((f, i) => (
+                        {(deal.brief.known_facts ?? []).map((f, i) => (
                           <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
                             <span className="w-1 h-1 rounded-full bg-gray-300 mt-1.5 shrink-0" />{f}
                           </li>
@@ -662,7 +662,7 @@ export default function DealDetailPage() {
                     <div>
                       <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Open questions</p>
                       <ul className="space-y-1">
-                        {deal.brief.open_questions.map((q, i) => (
+                        {(deal.brief.open_questions ?? []).map((q, i) => (
                           <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
                             <span className="w-1 h-1 rounded-full bg-amber-400 mt-1.5 shrink-0" />{q}
                           </li>
@@ -704,23 +704,24 @@ export default function DealDetailPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {(["founder_signal","market_signal","traction_signal","scout_conviction"] as const).map((key) => {
                     const sig = deal.signals![key];
+                    if (!sig) return null;
                     const label = key.replace("_signal","").replace("scout_","Scout ").replace(/\b\w/g, l => l.toUpperCase());
                     return (
                       <div key={key} className="border border-gray-100 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-xs text-gray-400">{label}</p>
-                          <span className={`text-xs font-semibold capitalize ${SIGNAL_COLOR[sig.level] ?? "text-gray-400"}`}>{sig.level}</span>
+                          <span className={`text-xs font-semibold capitalize ${SIGNAL_COLOR[sig.level] ?? "text-gray-400"}`}>{sig.level ?? "—"}</span>
                         </div>
-                        <p className="text-xs text-gray-600">{sig.evidence}</p>
+                        <p className="text-xs text-gray-600">{sig.evidence ?? "—"}</p>
                       </div>
                     );
                   })}
                 </div>
-                {deal.signals.risk_flags.length > 0 && (
+                {(deal.signals.risk_flags ?? []).length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-100">
                     <p className="text-xs font-medium text-gray-400 mb-2">Risk flags</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {deal.signals.risk_flags.map((f) => (
+                      {(deal.signals.risk_flags ?? []).map((f) => (
                         <span key={f} className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full">{f}</span>
                       ))}
                     </div>

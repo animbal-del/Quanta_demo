@@ -54,9 +54,14 @@ export async function middleware(request: NextRequest) {
     .from("user_roles")
     .select("role")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   const role = roleData?.role;
+
+  // No role found — account not fully set up, send back to login
+  if (!role) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
   if (isTeamRoute(pathname) && role !== "quanta" && role !== "admin") {
     return NextResponse.redirect(new URL("/scout", request.url));
