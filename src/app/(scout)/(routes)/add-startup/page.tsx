@@ -284,7 +284,23 @@ export default function AddStartupPage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [manual, setManual] = useState({ startup_name: "", founder_name: "", what_it_does: "", why_interesting: "", traction: "" });
 
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
+  // Track whether the form was completed so we know whether to discard on unmount
+  const submittedRef = useRef(false);
+  const dealIdRef = useRef<string | null>(null);
+  useEffect(() => { dealIdRef.current = dealId; }, [dealId]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      // Delete temp deal if user leaves without saving or submitting
+      const id = dealIdRef.current;
+      if (id && !submittedRef.current) {
+        fetch(`/api/startup/${id}/discard`, { method: "DELETE" }).catch(() => null);
+      }
+    };
+  }, []);
+
   const fmtTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   async function post(path: string, body: Record<string, unknown>) {
@@ -439,6 +455,7 @@ export default function AddStartupPage() {
     try {
       const id = dealId ?? await initDeal();
       await fetch(`/api/startup/${id}/save-draft`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ startup_name: reviewFields.startup_name || null, one_line_description: reviewFields.one_line_description || null, founder_name: reviewFields.founder_name || null }) });
+      submittedRef.current = true; // saved draft — don't discard on unmount
       setDraftSaved(true); setTimeout(() => setDraftSaved(false), 3000);
     } catch (e) { setError(`Draft save failed: ${e instanceof Error ? e.message : e}`);
     } finally { setSavingDraft(false); }
@@ -583,6 +600,7 @@ export default function AddStartupPage() {
         scout_id: getScoutId(),
       });
       await post(`/api/startup/${dealId}/submit`, {});
+      submittedRef.current = true; // prevents discard on unmount
       setStep(5);
     } catch (e) { setError(`Submission failed: ${e instanceof Error ? e.message : e}`);
     } finally { setNavigating(false); }
