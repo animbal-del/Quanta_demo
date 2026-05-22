@@ -270,7 +270,7 @@ export default function StartupDetailPage() {
         return;
       }
 
-      // Optimistically show messages, then confirm from DB
+      // Update local state — the API only returns after saving both messages to DB
       const data = await res.json();
       setDeal((prev) => prev ? {
         ...prev,
@@ -280,12 +280,6 @@ export default function StartupDetailPage() {
           { sender_type: "ai", body: data.ai_reply ?? "Got it.", created_at: new Date().toISOString() },
         ],
       } : prev);
-
-      // Re-fetch from DB to confirm persistence (non-blocking)
-      fetch(`/api/internal/deals/${id}`)
-        .then((r) => r.json())
-        .then((fresh) => setDeal(fresh))
-        .catch(() => { /* local state is fine if this fails */ });
 
     } catch (e) {
       console.error("[reply] Network error:", e);
