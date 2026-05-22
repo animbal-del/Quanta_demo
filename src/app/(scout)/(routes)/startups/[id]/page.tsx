@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Send, Upload, Mic, Mail, AlertCircle,
-  FileText, Loader2, MessageCircle, LayoutGrid, Clock, Edit3, X, Sparkles, Plus,
+  FileText, Loader2, MessageCircle, LayoutGrid, Clock, Edit3, X, Sparkles, Plus, RefreshCw,
 } from "lucide-react";
 
 interface Message { sender_type: string; body: string; created_at: string }
@@ -153,6 +153,8 @@ export default function StartupDetailPage() {
   const [tab, setTab] = useState<"overview" | "interaction">("overview");
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState("");
@@ -230,14 +232,30 @@ export default function StartupDetailPage() {
     });
   }
 
+  async function refreshMessages() {
+    setRefreshing(true);
+    try {
+      const fresh = await fetch(`/api/internal/deals/${id}`).then((r) => r.json());
+      setDeal(fresh);
+    } catch { /* ignore */ } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function sendReply() {
     if (!reply.trim() || !deal) return;
     setSending(true);
+    setSendError(null);
     const body = reply;
-    setReply(""); // clear input optimistically
+    setReply(""); // clear optimistically
 
     try {
-      const scoutId = typeof window !== "undefined" ? localStorage.getItem("quanta_scout_id") : null;
+      // Read scout_id from both localStorage and cookie (belt-and-suspenders)
+      const scoutId = typeof window !== "undefined"
+        ? (localStorage.getItem("quanta_scout_id") ??
+           document.cookie.split("; ").find((c) => c.startsWith("quanta_scout_id="))?.split("=")[1] ?? null)
+        : null;
+
       const res = await fetch(`/api/scout/deals/${id}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -246,13 +264,14 @@ export default function StartupDetailPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        console.error("[reply] API error:", err);
-        setReply(body); // restore message so user can retry
+        const msg = err.error ?? `Server error ${res.status}`;
+        setSendError(msg);
+        setReply(body); // restore so user can retry
         return;
       }
 
+      // Optimistically show messages, then confirm from DB
       const data = await res.json();
-      // Add both messages to local state — they're also saved in DB
       setDeal((prev) => prev ? {
         ...prev,
         messages: [
@@ -261,9 +280,17 @@ export default function StartupDetailPage() {
           { sender_type: "ai", body: data.ai_reply ?? "Got it.", created_at: new Date().toISOString() },
         ],
       } : prev);
+
+      // Re-fetch from DB to confirm persistence (non-blocking)
+      fetch(`/api/internal/deals/${id}`)
+        .then((r) => r.json())
+        .then((fresh) => setDeal(fresh))
+        .catch(() => { /* local state is fine if this fails */ });
+
     } catch (e) {
       console.error("[reply] Network error:", e);
-      setReply(body); // restore message
+      setSendError("Network error — check your connection and try again.");
+      setReply(body);
     } finally {
       setSending(false);
     }
@@ -450,6 +477,19 @@ export default function StartupDetailPage() {
 
       {tab === "interaction" && (
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+
+          {/* Send error banner */}
+          {sendError && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3 mb-1">
+              <AlertCircle size={13} className="text-red-500 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-red-700 font-medium">Message not sent</p>
+                <p className="text-xs text-red-600 mt-0.5">{sendError}</p>
+              </div>
+              <button onClick={() => setSendError(null)} className="text-red-400 hover:text-red-600 shrink-0"><X size={12} /></button>
+            </div>
+          )}
+
           {/* Missing info banner — shown above chat so scout always knows what's outstanding */}
           {pendingTasks.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-1">
@@ -507,6 +547,10 @@ export default function StartupDetailPage() {
         <div className="px-4 pb-6 pt-2 border-t border-gray-100 shrink-0">
           <div className="flex items-end gap-2 bg-gray-100 rounded-2xl px-3 py-2">
             <textarea value={reply} onChange={(e) => setReply(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }} placeholder="Reply to Quanta…" rows={1} className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 resize-none focus:outline-none leading-relaxed py-1" style={{ overflow: "hidden" }} onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }} />
+            <button onClick={refreshMessages} disabled={refreshing} title="Reload messages from server"
+              className="mb-1 w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors">
+              <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+            </button>
             <button onClick={sendReply} disabled={!reply.trim() || sending} className={`mb-1 w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${reply.trim() && !sending ? "bg-gray-950 text-white" : "bg-gray-300 text-gray-400 cursor-not-allowed"}`}>
               {sending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
             </button>
