@@ -16,7 +16,9 @@ interface Extraction {
   startup_name?: string | null; founder_names?: string[];
   one_line_description?: string | null; category?: string | null;
   traction_mentions?: string[]; scout_conviction?: string;
-  why_interesting?: string | null; missing_fields?: string[]; confidence?: number;
+  why_interesting?: string | null; company_strength?: string | null;
+  stage?: string | null; fundraising?: string | null;
+  missing_fields?: string[]; confidence?: number;
 }
 
 const INDICATORS = ["Problem", "Product", "Why interesting", "Traction"];
@@ -338,9 +340,12 @@ export default function AddStartupPage() {
     }));
     setFixedAnswers((p) => ({
       ...p,
-      company:  better(p.company  ?? "", ext.one_line_description),
-      founders: better(p.founders ?? "", ext.founder_names?.join(", ")),
-      traction: better(p.traction ?? "", ext.traction_mentions?.join(" · ")),
+      company:          better(p.company          ?? "", ext.one_line_description),
+      founders:         better(p.founders         ?? "", ext.founder_names?.join(", ")),
+      traction:         better(p.traction         ?? "", ext.traction_mentions?.join(" · ")),
+      company_strength: better(p.company_strength ?? "", ext.company_strength),
+      stage:            better(p.stage            ?? "", ext.stage),
+      fundraising:      better(p.fundraising      ?? "", ext.fundraising),
     }));
   }
 

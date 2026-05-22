@@ -191,6 +191,9 @@ export interface ExtractionOutput {
   traction_mentions: string[];
   scout_conviction: ScoutConviction;
   why_interesting: string | null;
+  company_strength: string | null;   // What stood out most — insight, metric, founder quality
+  stage: string | null;              // Pre-seed / Seed / Series A / MVP / pre-revenue etc.
+  fundraising: string | null;        // Previous raises + current raise target
   missing_fields: string[];
   confidence: number;
   recommended_next_question: string | null;
