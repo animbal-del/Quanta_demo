@@ -290,14 +290,23 @@ export default function AddStartupPage() {
   useEffect(() => { dealIdRef.current = dealId; }, [dealId]);
 
   useEffect(() => {
+    function discardIfAbandoned() {
+      const id = dealIdRef.current;
+      if (id && !submittedRef.current) {
+        // keepalive: true ensures the request survives page navigation / tab close
+        fetch(`/api/startup/${id}/discard`, { method: "DELETE", keepalive: true }).catch(() => null);
+      }
+    }
+
+    // Fires on browser tab close or hard refresh
+    window.addEventListener("beforeunload", discardIfAbandoned);
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
-      // Delete temp deal if user leaves without saving or submitting
-      const id = dealIdRef.current;
-      if (id && !submittedRef.current) {
-        fetch(`/api/startup/${id}/discard`, { method: "DELETE" }).catch(() => null);
-      }
+      window.removeEventListener("beforeunload", discardIfAbandoned);
+      // Fires on in-app navigation (Next.js route change)
+      discardIfAbandoned();
     };
   }, []);
 
@@ -517,16 +526,28 @@ export default function AddStartupPage() {
   async function handleContinue() {
     setError("");
     if (step === 1) {
-      setNavigating(true);
-      try { await initDeal(); setStep(2); } catch (e) { setError(`Could not start: ${e instanceof Error ? e.message : e}`); } finally { setNavigating(false); }
+      // Just advance — no DB write yet. Deal is created only when the user provides actual input.
+      setStep(2);
       return;
     }
     if (step === 2) {
-      if (!dealId) { setError("Something went wrong. Go back and try again."); return; }
+      // Validate input first before touching the DB
+      if (mode === "voice" && !recordedBlob) { setError("Please record your pitch first."); return; }
+      if (mode === "manual" && !manual.startup_name && !manual.what_it_does) { setError("Please fill in at least the startup name or description."); return; }
+      if (mode === "document" && !uploadedFile) { setError("Please select a file first."); return; }
+
+      // Create the deal now — only after the user has committed meaningful input
+      let id = dealId;
+      if (!id) {
+        setNavigating(true);
+        try { id = await initDeal(); } catch (e) { setError(`Could not start: ${e instanceof Error ? e.message : e}`); setNavigating(false); return; }
+        setNavigating(false);
+      }
+
       let ok = false;
-      if (mode === "voice") { if (!recordedBlob) { setError("Please record your pitch first."); return; } ok = await processAudio(dealId); }
-      else if (mode === "manual") { if (!manual.startup_name && !manual.what_it_does) { setError("Please fill in at least the startup name or description."); return; } ok = await processManual(dealId); }
-      else { if (!uploadedFile) { setError("Please select a file first."); return; } ok = await processDocument(dealId); }
+      if (mode === "voice") { ok = await processAudio(id); }
+      else if (mode === "manual") { ok = await processManual(id); }
+      else { ok = await processDocument(id); }
       if (ok) setStep(3);
       return;
     }
