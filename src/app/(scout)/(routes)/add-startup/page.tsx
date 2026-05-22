@@ -548,7 +548,10 @@ export default function AddStartupPage() {
               : []),
             ...aiAnswers.filter((a) => a.text).map((a) => ({ question: a.question, answer_text: a.text, answer_type: "text" })),
           ];
-          await post(`/api/startup/${dealId}/answers`, { answers: allAnswers, scout_id: getScoutId() });
+          const answersResult = await post(`/api/startup/${dealId}/answers`, { answers: allAnswers, scout_id: getScoutId() });
+          if (answersResult.messages_error) {
+            console.warn("[add-startup] Chat messages failed to save:", answersResult.messages_error);
+          }
 
           // Save "Don't have this yet" fields as proper missing_info_tasks
           const missingTasks = Object.entries(missingDates)

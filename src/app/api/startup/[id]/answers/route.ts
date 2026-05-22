@@ -74,9 +74,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
   }
 
+  let messages_saved = 0;
+  let messages_error: string | null = null;
+
   if (messages.length > 0) {
-    await db.from("deal_messages").insert(messages);
+    const { error: msgError } = await db.from("deal_messages").insert(messages);
+    if (msgError) {
+      messages_error = msgError.message;
+      console.error("[answers] deal_messages insert failed:", msgError.message);
+    } else {
+      messages_saved = messages.length;
+    }
   }
 
-  return NextResponse.json({ saved: rows.length });
+  return NextResponse.json({
+    saved: rows.length,
+    messages_saved,
+    messages_error, // null if OK, error string if failed — helps debug
+  });
 }
