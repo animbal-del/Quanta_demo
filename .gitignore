@@ -1,32 +1,77 @@
-# Dependencies
+# ─── Dependencies ─────────────────────────────────────────────────────────────
 node_modules/
 .pnp
 .pnp.js
+.yarn/install-state.gz
 
-# Next.js build output
+# ─── Next.js ──────────────────────────────────────────────────────────────────
 .next/
 out/
+.next-env.d.ts
 
-# Environment files — NEVER commit these
+# ─── Build artifacts ──────────────────────────────────────────────────────────
+dist/
+build/
+tsconfig.tsbuildinfo
+
+# ─── Environment & secrets — NEVER commit any of these ───────────────────────
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.local.example
+*.env
+*.env.*
 
-# Misc
+# ─── Vercel ───────────────────────────────────────────────────────────────────
+.vercel
+.vercel.*
+
+# ─── Supabase local ───────────────────────────────────────────────────────────
+supabase/.branches
+supabase/.temp
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store
-*.pem
-Thumbs.db
+.AppleDouble
+.LSOverride
+._*
 
-# Logs
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
 
-# Vercel
-.vercel
+# ─── Editor & IDE ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
 
-# Internal planning docs — not for repo
+# ─── Certificates & keys ──────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+Thumbs.db
+*.tgz
+*.zip
+
+# ─── Internal / local-only docs ───────────────────────────────────────────────
 flow.md
-.env.vercel
+
+# ─── Pitch deck & investor docs (generated artifacts, not source) ─────────────
+stratum-investor-memo.md
+stratum-investor-memo.docx
+stratum-pitch-deck.md
+stratum-pitch-deck.pptx
