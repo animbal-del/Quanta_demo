@@ -285,6 +285,8 @@ export default function AddStartupPage() {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const speechRef = useRef<any>(null);
   const [manual, setManual] = useState({ startup_name: "", founder_name: "", what_it_does: "", why_interesting: "", traction: "" });
 
   // Track whether the form was completed so we know whether to discard on unmount
@@ -308,12 +310,29 @@ export default function AddStartupPage() {
       if (timerRef.current) clearInterval(timerRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       window.removeEventListener("beforeunload", discardIfAbandoned);
+      speechRef.current?.stop(); speechRef.current = null;
       // Fires on in-app navigation (Next.js route change)
       discardIfAbandoned();
     };
   }, []);
 
   const fmtTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+  const INDICATOR_KEYWORDS = [
+    ["problem", "challenge", "issue", "pain", "struggle", "broken", "inefficient", "frustrating", "difficult", "hurting"],
+    ["build", "building", "product", "solution", "platform", "app", "software", "tool", "developing", "making", "system", "service"],
+    ["interesting", "unique", "different", "advantage", "opportunity", "insight", "founder", "background", "experience", "expertise", "special", "believe", "thesis"],
+    ["traction", "revenue", "customer", "users", "growth", "pilot", "mrr", "arr", "raised", "funding", "investor", "deployed", "launched", "clients", "deals", "paying"],
+  ];
+
+  function analyzeTranscript(text: string): Set<number> {
+    const lower = text.toLowerCase();
+    const ticked = new Set<number>();
+    INDICATOR_KEYWORDS.forEach((keywords, i) => {
+      if (keywords.some((kw) => lower.includes(kw))) ticked.add(i);
+    });
+    return ticked;
+  }
 
   async function post(path: string, body: Record<string, unknown>) {
     const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -369,19 +388,40 @@ export default function AddStartupPage() {
       mrRef.current = mr;
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => { setRecordedBlob(new Blob(chunksRef.current, { type: mime })); streamRef.current?.getTracks().forEach((t) => t.stop()); };
-      mr.start(1000); setRecording(true); setTimeLeft(120);
+      mr.start(1000); setRecording(true); setTimeLeft(120); setTickedIndicators(new Set());
       timerRef.current = setInterval(() => {
         setTimeLeft((t) => {
           if (t <= 1) { stopRecording(); return 0; }
-          if (t === 90) setTickedIndicators(new Set([0]));
-          if (t === 60) setTickedIndicators(new Set([0, 1]));
-          if (t === 30) setTickedIndicators(new Set([0, 1, 2]));
           return t - 1;
         });
       }, 1000);
+
+      // Live transcript for context-based ticking
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SpeechRec = (typeof window !== "undefined") && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+      if (SpeechRec) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sr: any = new SpeechRec();
+        sr.continuous = true;
+        sr.interimResults = true;
+        sr.lang = "en-US";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        sr.onresult = (event: any) => {
+          let full = "";
+          for (let i = 0; i < event.results.length; i++) full += event.results[i][0].transcript + " ";
+          setTickedIndicators(analyzeTranscript(full));
+        };
+        sr.start();
+        speechRef.current = sr;
+      }
     } catch { setError("Microphone access denied. Allow it in browser settings."); }
   }
-  function stopRecording() { if (timerRef.current) clearInterval(timerRef.current); mrRef.current?.stop(); setRecording(false); }
+  function stopRecording() {
+    if (timerRef.current) clearInterval(timerRef.current);
+    mrRef.current?.stop();
+    speechRef.current?.stop(); speechRef.current = null;
+    setRecording(false);
+  }
 
   async function processAudio(id: string): Promise<boolean> {
     if (!recordedBlob) return false;
